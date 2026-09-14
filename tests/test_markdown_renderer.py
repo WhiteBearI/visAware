@@ -91,6 +91,15 @@ class MarkdownRendererTestCase(unittest.TestCase):
 		self.assertIn("title='$unchanged$'", htmlText)
 		self.assertIn("<math", htmlText)
 
+	def test_preserves_table_spans_used_by_rapidocr(self) -> None:
+		htmlText = self.renderer.sanitizeRenderedHtml(
+			self.renderer.renderMarkdownToHtml(
+				'<table><tr><td rowspan="2">A</td><td colspan="3">B</td></tr><tr><td>C</td></tr></table>',
+			),
+		)
+		self.assertIn('rowspan="2"', htmlText)
+		self.assertIn('colspan="3"', htmlText)
+
 	def test_preserves_mathml_entities_while_converting_raw_html(self) -> None:
 		htmlText = self.renderer.renderMarkdownToHtml(
 			"<div><math><mo>&InvisibleTimes;</mo></math><span>$x$</span></div>",

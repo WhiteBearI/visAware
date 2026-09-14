@@ -225,6 +225,8 @@ OCR engines:
 * Ollama OCR
 * Kimi OCR
 * Text CAPTCHA recognition through RuCaptcha or 2Captcha
+* RapidOCR Text (PP-OCRv6 Small)
+* RapidOCR Table (automatic)
 
 Image description engines:
 
@@ -245,6 +247,12 @@ AI Agent engines:
 * Kimi
 
 Engine availability depends on its service and configuration.
+
+The add-on includes a Windows x64 RapidOCR Small DLL. RapidOCR Text
+returns clickable text coordinates. RapidOCR Table tries bordered-table
+recognition first and falls back to SLANet for borderless or complex tables.
+It returns an HTML table in a browsable NVDA document. Neither engine uses a
+network service.
 
 ## Apple Vision (OCR Server)
 

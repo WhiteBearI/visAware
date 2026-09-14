@@ -217,6 +217,13 @@ class RecognitionRuntime:
 		displayObject = resultObjectClass(result=result)
 		displayObject.setFocus()
 
+	def showHtmlRecognitionResult(self, result: RecognitionResult) -> bool:
+		htmlContent = getattr(result, "htmlContent", None)
+		if not isinstance(htmlContent, str) or not htmlContent.strip():
+			return False
+		showMarkdownBrowseableMessage(htmlContent, title=_("Recognition result"))
+		return True
+
 	def isScreenCurtainRunning(self) -> bool:
 		from screenCurtain import screenCurtain as screenCurtainController
 
@@ -250,6 +257,8 @@ class RecognitionRuntime:
 			conf = config.conf["visAwareGeneral"]
 			if conf["copyToClipboard"]:
 				api.copyToClip(result.text, notify=True)
+			if self.showHtmlRecognitionResult(result):
+				return
 			if isinstance(result, SimpleTextResult):
 				forceVirtualDocument = getattr(result, "forceVirtualDocument", False)
 				if getattr(result, "forceBrowseableMessage", False) or (

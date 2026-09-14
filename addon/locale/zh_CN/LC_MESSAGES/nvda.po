@@ -3115,3 +3115,24 @@ msgstr "### 0.9.10\n"
 
 #~ msgid "API &Key:"
 #~ msgstr "API 密钥(&K):"
+
+#. Translators: An error shown when RapidOCR receives invalid image bytes.
+msgid "RapidOCR received invalid image content."
+msgstr "RapidOCR 收到的图像内容无效。"
+
+#. Translators: A low-level error reported by the bundled RapidOCR DLL.
+#, python-brace-format
+msgid "RapidOCR failed: {}"
+msgstr "RapidOCR 失败：{}"
+
+#. Translators: An error shown when neither RapidOCR table mode found a reliable table.
+msgid "No reliable table structure was detected."
+msgstr "未检测到可靠的表格结构。"
+
+#. Translators: The name of the bundled offline RapidOCR text engine.
+msgid "RapidOCR Text (PP-OCRv6 Small)"
+msgstr "RapidOCR 文字（PP-OCRv6 Small）"
+
+#. Translators: The name of the bundled automatic RapidOCR table engine.
+msgid "RapidOCR Table (automatic)"
+msgstr "RapidOCR 表格（自动）"

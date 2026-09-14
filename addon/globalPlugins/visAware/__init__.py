@@ -490,7 +490,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		):
 			# Translators: The title for the browsable message showing the recognition result.
 			showMarkdownBrowseableMessage(resultObject.text, title=_("Recognition result"))
-		else:
+		elif not self._showHtmlRecognitionResult(resultObject):
 			self._showRecognitionResultDocument(resultObject)
 
 	@script(
@@ -570,6 +570,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _showRecognitionResultDocument(self, result: RecognitionResult, autoSayAll: bool = False) -> None:
 		self._recognitionRuntime.showRecognitionResultDocument(result, autoSayAll)
+
+	def _showHtmlRecognitionResult(self, result: RecognitionResult) -> bool:
+		return self._recognitionRuntime.showHtmlRecognitionResult(result)
 
 	def _isScreenCurtainRunning(self) -> bool:
 		return self._recognitionRuntime.isScreenCurtainRunning()

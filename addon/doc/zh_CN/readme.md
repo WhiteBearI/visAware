@@ -125,6 +125,8 @@ OCR 引擎：
 * Ollama OCR
 * Kimi OCR
 * 通过 RuCaptcha 或 2Captcha 识别文本验证码
+* RapidOCR 文字（PP-OCRv6 Small）
+* RapidOCR 表格（自动）
 
 图像描述引擎：
 
@@ -145,6 +147,8 @@ AI Agent 引擎：
 * Kimi
 
 引擎是否可用取决于相应服务和配置。
+
+本插件内置 Windows x64 RapidOCR Small DLL。RapidOCR 文字引擎提供可点击的文字坐标；RapidOCR 表格引擎会先尝试有线框表格识别，对无框或复杂表格再回退到 SLANet，并在 NVDA 可浏览文档中显示 HTML 表格。两个引擎都不需要网络服务。
 
 ## Apple Vision (OCR Server)
 
