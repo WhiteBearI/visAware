@@ -267,7 +267,6 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		"""
 		pass
 
-	@abstractmethod
 	def processApiResult(self, result: bytes) -> str | bool:
 		"""
 		Processes the API result to check for errors.
@@ -275,7 +274,7 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		:param result: The raw byte response from the server.
 		:returns: An error message string on failure, or False on success.
 		"""
-		pass
+		return False
 
 	@abstractmethod
 	def extractText(self, apiResult: dict) -> str:
@@ -523,6 +522,15 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		finally:
 			self._cleanup()
 
+	def _getApiResult(self, requestParams: dict[str, Any], cancellationEvent: Event) -> dict[str, Any]:
+		"""Returns a validated response; multi-step clients can override the request flow."""
+		response = network.sendRequest(**requestParams)
+		self._checkCancelled(cancellationEvent)
+		apiErrorMessage = self.processApiResult(response.content)
+		if apiErrorMessage:
+			raise ApiError(str(apiErrorMessage))
+		return self._convertToJson(response.content)
+
 	def _handleStandardResponse(
 		self,
 		requestParams: dict,
@@ -531,12 +539,7 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		request: RecognitionRequest,
 	) -> Any:
 		"""Handles a standard, non-streaming API response."""
-		response = network.sendRequest(**requestParams)
-		self._checkCancelled(cancellationEvent)
-		apiErrorMessage = self.processApiResult(response.content)
-		if apiErrorMessage:
-			raise ApiError(str(apiErrorMessage))
-		jsonResponse = self._convertToJson(response.content)
+		jsonResponse = self._getApiResult(requestParams, cancellationEvent)
 		self._checkCancelled(cancellationEvent)
 		historyEntry = (
 			recogHistory.createEntry(self, self.originalImage, jsonResponse) if self.originalImage else None
