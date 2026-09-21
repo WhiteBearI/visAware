@@ -8,6 +8,7 @@ import types
 import traceback
 import unittest
 from threading import Event
+from unittest.mock import Mock
 
 import requests
 
@@ -243,6 +244,31 @@ class NetworkRequestRetryTestCase(unittest.TestCase):
 
 		self.assertIn("Network connection failed.", str(error.exception))
 		self.assertEqual(len(requestCalls), 1)
+
+	def test_caller_session_preserves_error_handling_and_retry_policy(self) -> None:
+		self.module.requests.request = Mock(side_effect=AssertionError("Expected the supplied session"))
+		for status in (200, 401, 403, 429, 500, "timeout"):
+			with self.subTest(status=status):
+				session = Mock(spec=requests.Session)
+				cancelCheck = Mock()
+				if status == "timeout":
+					session.request.side_effect = requests.exceptions.ReadTimeout()
+					expectedError = self.module.NetworkError
+				else:
+					session.request.return_value = _FakeResponse(status, b"ok")
+					expectedError = (
+						self.module.AuthenticationError if status in (401, 403) else self.module.ApiError
+					)
+				params = {"session": session, "retry": False, "cancelCheck": cancelCheck, "timeout": 30}
+				if status == 200:
+					result = self.module.sendRequest("POST", "https://example.test", **params)
+					self.assertEqual(result.content, b"ok")
+				else:
+					with self.assertRaises(expectedError):
+						self.module.sendRequest("POST", "https://example.test", **params)
+				session.request.assert_called_once_with(method="POST", url="https://example.test", timeout=30)
+				session.close.assert_not_called()
+				cancelCheck.assert_called()
 
 	def test_query_credentials_are_hidden_in_logs_and_exception_chains(self) -> None:
 		secret = "private-test-key"

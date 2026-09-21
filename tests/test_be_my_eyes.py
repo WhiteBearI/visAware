@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from queue import Queue
 import sys
-from threading import Event
+from threading import Event, get_ident
 import types
 import unittest
 from unittest.mock import Mock, patch
@@ -93,6 +93,12 @@ class BeMyEyesTest(unittest.TestCase):
 		self.check = Mock()
 		self.client = self.clientModule.BeMyEyesClient(self.check)
 		self.http = patch.object(requests, "request").start()
+		self.sessionRequest = patch.object(
+			requests.Session,
+			"request",
+			autospec=True,
+			side_effect=lambda session, **kwargs: self.http(**kwargs),
+		).start()
 
 	def queueResponses(self, *payloads):
 		self.http.side_effect = [response(payload) for payload in payloads]
@@ -457,7 +463,7 @@ class BeMyEyesTest(unittest.TestCase):
 		for packet in ("1", "41", '44{"message":"rejected"}'):
 			self.mockGateway(authentication=(packet,))
 			with self.assertRaisesRegex(self.errors.ApiError, "connection closed"):
-				with self.client._gatewaySession():
+				with requests.Session() as session, self.client._gatewaySession(session):
 					self.fail("A rejected gateway must not yield a session")
 		self.mockGateway(({},), ('42["NEW_CHAT_MESSAGE", private text',))
 		with patch.object(self.clientModule, "DESCRIPTION_TIMEOUT", 0.01):
@@ -541,6 +547,78 @@ class BeMyEyesTest(unittest.TestCase):
 			result = self.client.describeImage(b"image")
 		self.assertEqual(result["text"], "description")
 		self.assertEqual(self.http.call_args.kwargs["data"], "1")
+
+	def test_sessions_are_reused_and_closed_by_their_own_threads(self):
+		owners = {}
+		closed = set()
+		realClose = requests.Session.close
+
+		def request(session, **kwargs):
+			self.assertNotIn(session, closed)
+			self.assertEqual(owners.setdefault(session, get_ident()), get_ident())
+			self.assertNotIn("Authorization", session.headers)
+			return self.http(**kwargs)
+
+		def close(session):
+			self.assertEqual(owners[session], get_ident())
+			closed.add(session)
+			realClose(session)
+
+		self.sessionRequest.side_effect = request
+		with patch.object(requests.Session, "close", autospec=True, side_effect=close):
+			self.mockGateway(
+				(
+					{},
+					{"id": 7},
+					{"url": "https://upload.example.test/", "fields": {}, "chat_image_id": 8},
+					"",
+					{"images": [{"upload_finished": True}]},
+				),
+				(chatEvent("description", session=7),),
+			)
+			with patch.object(self.client, "_prepareImage", return_value=(b"image", 40, 20, "png")):
+				self.client.describeImage(b"image")
+			self.assertEqual(len(owners), 2)
+			self.assertEqual(len(set(owners.values())), 2)
+			self.assertEqual(set(owners), closed)
+			apiSessions = [
+				call.args[0]
+				for call in self.sessionRequest.call_args_list
+				if call.kwargs["url"].startswith(self.clientModule.API_BASE_URL)
+			]
+			self.assertEqual(len(apiSessions), 4)
+			self.assertEqual(len(set(apiSessions)), 1)
+			self.assertEqual(owners[apiSessions[0]], get_ident())
+			self.mockGateway(({},), (chatEvent("answer", session=7),))
+			self.client.askQuestion(7, "question")
+			self.assertEqual(len(owners), 4)
+			self.assertEqual(set(owners), closed)
+
+	def test_sessions_close_after_failed_setup_and_cancelled_submission(self):
+		for phase in ("opening", "cancellation"):
+			with self.subTest(phase=phase):
+				self.sessionRequest.reset_mock()
+				if phase == "opening":
+					self.queueResponses("invalid")
+					expectedError = self.errors.ApiError
+				else:
+					self.mockGateway(({},))
+					send = self.http.side_effect
+
+					def cancel(**kwargs):
+						result = send(**kwargs)
+						if kwargs["url"].endswith("/messages"):
+							self.check.side_effect = self.errors.CancellationError("cancelled")
+						return result
+
+					self.http.side_effect = cancel
+					expectedError = self.errors.CancellationError
+				with patch.object(requests.Session, "close", autospec=True) as close:
+					with self.assertRaises(expectedError):
+						self.client.askQuestion(7, "question")
+				usedSessions = {call.args[0] for call in self.sessionRequest.call_args_list}
+				self.assertEqual(len(usedSessions), 1 if phase == "opening" else 2)
+				self.assertEqual({call.args[0] for call in close.call_args_list}, usedSessions)
 
 	def test_uncertain_question_submission_blocks_retry_but_failed_setup_does_not(self):
 		self.mockGateway(({},))

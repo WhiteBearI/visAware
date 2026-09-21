@@ -329,12 +329,15 @@ def _iterResponseLinesCancellable(
 
 
 @retryOnNetworkError()
-def sendRequest(method: str, url: str, **kwargs: Any) -> requests.Response:
+def sendRequest(
+	method: str, url: str, *, session: requests.Session | None = None, **kwargs: Any
+) -> requests.Response:
 	"""
 	Sends a standard (non-streaming) HTTP request with unified error handling.
 
 	:param method: The HTTP method (e.g., 'GET', 'POST').
 	:param url: The URL for the request.
+	:param session: An optional caller-owned session for connection reuse.
 	:param kwargs: Other arguments passed to requests.request (e.g., headers, data, files, json).
 	:param retry: An optional keyword that disables automatic retries when false.
 	:raises NetworkError: For connection or timeout errors after multiple retries.
@@ -349,7 +352,8 @@ def sendRequest(method: str, url: str, **kwargs: Any) -> requests.Response:
 		return _sendRequestCancellable(method, url, cancelCheck, **kwargs)
 
 	try:
-		response = requests.request(method=method, url=url, **kwargs)
+		request = session.request if session is not None else requests.request
+		response = request(method=method, url=url, **kwargs)
 		# This will raise an HTTPError for 4xx/5xx responses.
 		response.raise_for_status()
 		return response

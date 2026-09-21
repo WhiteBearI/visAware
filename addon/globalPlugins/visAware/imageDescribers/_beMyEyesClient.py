@@ -192,10 +192,10 @@ class BeMyEyesClient:
 		return token, f"{name} <{email}>" if name else email
 
 	def describeImage(self, imageContent: bytes) -> dict[str, Any]:
-		with self._gatewaySession() as events:
-			userConfig = self._apiRequest("GET", "app-config/user")
+		with requests.Session() as session, self._gatewaySession(session) as events:
+			userConfig = self._apiRequest("GET", "app-config/user", session=session)
 			imageBytes, width, height, imageType = self._prepareImage(imageContent, userConfig)
-			chat = self._apiRequest("POST", "chats", json={"context": "chat"})
+			chat = self._apiRequest("POST", "chats", json={"context": "chat"}, session=session)
 			chatId = chat.get("id")
 			if type(chatId) is not int or chatId <= 0:
 				# Translators: An error when Be My Eyes cannot create a chat.
@@ -204,12 +204,14 @@ class BeMyEyesClient:
 				"POST",
 				f"chats/{chatId}/request-image-upload",
 				json={"format": imageType, "width": width, "height": height},
+				session=session,
 			)
 			self._uploadImage(upload, imageBytes, f"image/{imageType}")
 			message = self._apiRequest(
 				"POST",
 				f"chats/{chatId}/messages",
 				json={"role": "user", "type": "text", "chat_image_id": upload["chat_image_id"]},
+				session=session,
 			)
 			images = message.get("images")
 			if not (
@@ -236,7 +238,7 @@ class BeMyEyesClient:
 			_pendingQuestions.add(chatId)
 		submitted = answered = False
 		try:
-			with self._gatewaySession() as events:
+			with requests.Session() as session, self._gatewaySession(session) as events:
 				self._checkCancelled()
 				submitted = True
 				try:
@@ -244,6 +246,7 @@ class BeMyEyesClient:
 						"POST",
 						f"chats/{chatId}/messages",
 						json={"role": "user", "type": "text", "data": question},
+						session=session,
 					)
 				except ApiError as e:
 					if _getHttpStatus(e) in {400, 401, 403, 404, 422, 429}:
@@ -259,7 +262,13 @@ class BeMyEyesClient:
 					_pendingQuestions.remove(chatId)
 
 	def _gatewayRequest(
-		self, method: str, sid: str = "", data: str | None = None, stopped: Event | None = None
+		self,
+		method: str,
+		sid: str = "",
+		data: str | None = None,
+		stopped: Event | None = None,
+		*,
+		session: requests.Session,
 	) -> str:
 		params = {"EIO": "4", "transport": "polling"}
 		if sid:
@@ -267,14 +276,16 @@ class BeMyEyesClient:
 		with self._gatewayWriteLock if method == "POST" else nullcontext():
 			if stopped is not None and stopped.is_set():
 				return ""
-			return self._request(method, GATEWAY_BASE_URL + "socket/", params=params, data=data).text
+			return self._request(
+				method, GATEWAY_BASE_URL + "socket/", params=params, data=data, session=session
+			).text
 
 	@contextmanager
-	def _gatewaySession(self) -> Iterator[Queue[list[Any] | Exception]]:
+	def _gatewaySession(self, session: requests.Session) -> Iterator[Queue[list[Any] | Exception]]:
 		if not self._token:
 			# Translators: An error when Be My Eyes has no usable saved login.
 			raise AuthenticationError(_("Please log in to your Be My Eyes account in the engine settings."))
-		opening = self._gatewayRequest("GET").split(chr(30), 1)[0]
+		opening = self._gatewayRequest("GET", session=session).split(chr(30), 1)[0]
 		try:
 			if not opening.startswith("0"):
 				raise ValueError("Expected an Engine.IO open packet")
@@ -290,7 +301,7 @@ class BeMyEyesClient:
 			target=self._pollGateway, args=(sid, stopped, events), name="BeMyEyesGateway", daemon=True
 		)
 		try:
-			if self._gatewayRequest("POST", sid, "40") != "ok":
+			if self._gatewayRequest("POST", sid, "40", session=session) != "ok":
 				# Translators: An error when Be My Eyes gateway authentication fails.
 				raise ApiError(_("Be My Eyes gateway authentication failed."))
 			reader.start()
@@ -300,7 +311,7 @@ class BeMyEyesClient:
 			else:
 				# Translators: An error when Be My Eyes gateway authentication cannot be confirmed.
 				raise ApiError(_("Be My Eyes gateway authentication was not confirmed."))
-			self._gatewayRequest("POST", sid, '42["ENABLE_CHAT","{}"]')
+			self._gatewayRequest("POST", sid, '42["ENABLE_CHAT","{}"]', session=session)
 			yield events
 		finally:
 			stopped.set()
@@ -314,6 +325,7 @@ class BeMyEyesClient:
 						data="1",
 						timeout=5,
 						retry=False,
+						session=session,
 					)
 			except OCRError:
 				log.debugWarning("Could not close the Be My Eyes gateway session.", exc_info=True)
@@ -326,26 +338,29 @@ class BeMyEyesClient:
 
 	def _pollGateway(self, sid: str, stopped: Event, events: Queue[list[Any] | Exception]) -> None:
 		try:
-			while not stopped.is_set():
-				for packet in self._gatewayRequest("GET", sid, stopped=stopped).split(chr(30)):
-					if stopped.is_set():
-						return
-					self._checkCancelled()
-					if packet == "2":
-						self._gatewayRequest("POST", sid, "3", stopped=stopped)
-						continue
-					if packet in {"1", "41"} or packet.startswith("44"):
-						# Translators: An error when the Be My Eyes chat connection closes before an answer.
-						raise ApiError(_("The Be My Eyes chat connection closed. Please try again."))
-					if not packet.startswith("42"):
-						continue
-					try:
-						event = json.loads(packet[2:])
-					except ValueError:
-						log.debugWarning("Be My Eyes ignored a malformed gateway event.")
-						continue
-					if isinstance(event, list) and event and isinstance(event[0], str):
-						events.put(event)
+			with requests.Session() as session:
+				while not stopped.is_set():
+					for packet in self._gatewayRequest("GET", sid, stopped=stopped, session=session).split(
+						chr(30)
+					):
+						if stopped.is_set():
+							return
+						self._checkCancelled()
+						if packet == "2":
+							self._gatewayRequest("POST", sid, "3", stopped=stopped, session=session)
+							continue
+						if packet in {"1", "41"} or packet.startswith("44"):
+							# Translators: An error when the Be My Eyes chat connection closes before an answer.
+							raise ApiError(_("The Be My Eyes chat connection closed. Please try again."))
+						if not packet.startswith("42"):
+							continue
+						try:
+							event = json.loads(packet[2:])
+						except ValueError:
+							log.debugWarning("Be My Eyes ignored a malformed gateway event.")
+							continue
+						if isinstance(event, list) and event and isinstance(event[0], str):
+							events.put(event)
 		except Exception as e:
 			events.put(e)
 
