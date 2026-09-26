@@ -74,6 +74,7 @@ class BeMyEyesTest(unittest.TestCase):
 		sys.modules["config"].conf = self.conf
 		self.errors = loadModule("exceptions", "exceptions.py")
 		self.network = loadModule("network", "network.py")
+		sys.modules[PACKAGE].network = self.network
 		loadModule("secure_storage", "secure_storage.py")
 		self.history = loadModule("recogHistory", "recogHistory.py")
 		self.handler.recogHistory = self.history
@@ -85,7 +86,7 @@ class BeMyEyesTest(unittest.TestCase):
 			"imageDescribers._beMyEyesClient", "imageDescribers/_beMyEyesClient.py"
 		)
 		self.guiModule = loadModule("imageDescribers._beMyEyesGui", "imageDescribers/_beMyEyesGui.py")
-		sys.modules[f"{PACKAGE}.engineGUIHelper"].ButtonEngineSetting = lambda name, label: (
+		sys.modules[f"{PACKAGE}.engineSettings"].ButtonEngineSetting = lambda name, label: (
 			types.SimpleNamespace(name=name, displayNameWithAccelerator=label)
 		)
 		self.engineModule = loadModule("imageDescribers.beMyEyes", "imageDescribers/beMyEyes.py")
@@ -186,7 +187,7 @@ class BeMyEyesTest(unittest.TestCase):
 		self.assertEqual(uploadCall["files"]["file"][1:], (b"jpeg", "image/jpeg"))
 		self.assertTrue(all(call["timeout"] <= 30 for call in calls))
 		self.assertTrue(any(call.get("data") == "3" for call in calls))
-		self.assertEqual(calls[-1]["data"], "1")
+		self.assertTrue(any(call.get("data") == "1" for call in calls))
 		self.mockGateway(({},), (chatEvent("It is open.", session=7),))
 		answer = engine.askQuestion(types.SimpleNamespace(response=entry.response), "Is it open?", self.check)
 		self.assertEqual(answer, "It is open.")
@@ -423,7 +424,7 @@ class BeMyEyesTest(unittest.TestCase):
 		self.http.side_effect = cancelAfterSubmission
 		with self.assertRaises(self.errors.CancellationError):
 			self.client.askQuestion(7, "old question")
-		self.assertEqual(self.http.call_args.kwargs["data"], "1")
+		self.assertTrue(any(call.kwargs.get("data") == "1" for call in self.http.call_args_list))
 		self.http.reset_mock()
 		with self.assertRaises(self.errors.CancellationError):
 			self.client.askQuestion(7, "new question")

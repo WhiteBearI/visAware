@@ -213,7 +213,14 @@ def _isRetryableHttpStatus(statusCode: int) -> bool:
 	return statusCode == 429 or statusCode >= 500
 
 
-def _sendRequestCancellable(method: str, url: str, cancelCheck: Callable[[], None], **kwargs: Any):
+def _sendRequestCancellable(
+	method: str,
+	url: str,
+	cancelCheck: Callable[[], None],
+	*,
+	session: requests.Session | None = None,
+	**kwargs: Any,
+):
 	result = Queue()
 	stopEvent = Event()
 	responseHolder: dict[str, requests.Response] = {}
@@ -232,10 +239,24 @@ def _sendRequestCancellable(method: str, url: str, cancelCheck: Callable[[], Non
 			closeResponse()
 			raise
 
+	if session is not None:
+		checkCancelled()
+		response = session.request(method=method, url=url, **kwargs)
+		try:
+			response.raise_for_status()
+			checkCancelled()
+			return response
+		except requests.exceptions.HTTPError as error:
+			statusCode = error.response.status_code if error.response is not None else None
+			if statusCode is not None and _isRetryableHttpStatus(statusCode):
+				raise
+			_handleHttpError(error)
+
 	def request() -> None:
 		try:
 			requestKwargs = {**kwargs, "stream": True}
-			response = requests.request(method=method, url=url, **requestKwargs)
+			requestFunc = session.request if session is not None else requests.request
+			response = requestFunc(method=method, url=url, **requestKwargs)
 			responseHolder["response"] = response
 			if stopEvent.is_set():
 				response.close()
@@ -349,7 +370,7 @@ def sendRequest(
 	if "timeout" not in kwargs:
 		kwargs["timeout"] = 100
 	if callable(cancelCheck):
-		return _sendRequestCancellable(method, url, cancelCheck, **kwargs)
+		return _sendRequestCancellable(method, url, cancelCheck, session=session, **kwargs)
 
 	try:
 		request = session.request if session is not None else requests.request

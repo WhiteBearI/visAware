@@ -167,19 +167,25 @@ engine must remain enabled in each mode.
 For PaddleOCR / PaddleOCR-VL, the OCR settings support an AI Studio hosted task
 API, an AI Studio deployed service, or a self-hosted PaddleOCR service.
 
-For Be My Eyes / Be My AI, choose **Log in to Be My Eyes...** in the image
-description settings and enter your Be My Eyes email and password. The login
-token is protected with Windows DPAPI; the password is never stored. The account
-button shows your saved account and lets you log out or sign in again after
-the login expires. Logging out clears the login saved by Vis Aware.
+## Be My Eyes / Be My AI
 
-Be My Eyes supports manual image descriptions and follow-up questions in the
-same chat. Automatic recognition, custom prompts, and streaming are unavailable.
-If a follow-up question is interrupted after submission, recognize the image
-again before asking more questions, so that a delayed reply cannot be mistaken
-for the answer to a new question.
-This engine uses the Be My Eyes app interface, whose availability and account
-limits are controlled by Be My Eyes.
+Be My Eyes / Be My AI can describe an image and answer follow-up questions about
+the same image. To use it, open the image description settings, choose **Log in
+to Be My Eyes...**, and enter your Be My Eyes email address and password. Your
+password is not stored by Vis Aware.
+
+This engine supports manual descriptions and follow-up questions. Automatic
+recognition, custom prompts, and streaming are unavailable. If you cancel a
+follow-up after sending it, recognize the image again before asking another
+question, as a delayed reply may otherwise be associated with a later question.
+
+Images and questions are sent to Be My Eyes. Service availability, account
+limits, and available features are controlled by Be My Eyes and may change.
+Vis Aware is not responsible for account restrictions, service changes, data
+loss, or other consequences of using the service. Follow Be My Eyes' applicable
+terms and avoid sending sensitive information unless you accept the risks.
+
+## Baimiao OCR / Formula Recognition
 
 For [Baimiao OCR](https://baimiaoapp.com) or Baimiao Formula Recognition, select
 **Log in to Baimiao...**

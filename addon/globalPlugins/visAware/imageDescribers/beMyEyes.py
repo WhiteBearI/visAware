@@ -11,7 +11,7 @@ import gui
 from logHandler import log
 import wx
 
-from ..engineGUIHelper import ButtonEngineSetting
+from ..engineSettings import ButtonEngineSetting
 from ..exceptions import ApiError, AuthenticationError
 from ..recogHandler import BaseDescriber, RecognitionRequest
 from ._beMyEyesClient import BeMyEyesClient, getStoredAccountLabel, getStoredToken, saveAccount

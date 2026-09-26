@@ -97,6 +97,16 @@ AI Agent 每一步都会向所选服务发送全屏截图，其中可能包含�
 
 PaddleOCR / PaddleOCR-VL 支持 AI Studio 托管任务 API、AI Studio 部署服务和自托管 PaddleOCR 服务。
 
+## Be My Eyes / Be My AI
+
+Be My Eyes / Be My AI 可以描述图像，并回答关于同一图像的追问。使用时，请打开图像描述设置，选择**登录 Be My Eyes...**，然后输入 Be My Eyes 账户的电子邮箱和密码。Vis Aware 不会保存你的密码。
+
+该引擎支持手动描述和追问，不支持自动识别、自定义提示词和流式输出。如果发送追问后将其取消，请重新识别图像再提出其他问题，否则迟到的回复可能会被当作后续问题的答案。
+
+图像和问题会发送给 Be My Eyes。服务是否可用、账户限制和可用功能由 Be My Eyes 决定，并可能发生变化。对于账户限制、服务变更、数据丢失或使用该服务造成的其他后果，Vis Aware 不承担责任。请遵守 Be My Eyes 的适用条款，并在了解风险后再发送敏感信息。
+
+## 白描 OCR / 公式识别
+
 使用[白描 OCR](https://baimiaoapp.com) 或白描公式识别时，请在 OCR 引擎设置中选择**登录白描...**，然后输入白描账号的电子邮箱或手机号及密码。两个引擎共用同一登录状态。
 
 Vis Aware 会保存用于识别此设备的固定标识，以及设置按钮显示的昵称或脱敏登录账号和会员等级。这些信息使用 Windows DPAPI 加密保护；密码不会保存。公式识别结果会同时提供文字和公式；在可浏览结果中，公式会以便于屏幕阅读器阅读的方式呈现。
@@ -130,6 +140,7 @@ OCR 引擎：
 
 图像描述引擎：
 
+* Be My Eyes / Be My AI
 * Google Gemini
 * Google Gemma
 * DeepSeek

@@ -2213,16 +2213,19 @@ msgid "&Email or mobile number"
 msgstr "电子邮箱或手机号(&E)"
 
 #: addon\globalPlugins\visAware\contentRecognizers\_baimiaoGui.py:43
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:38
 msgid "&Password"
 msgstr "密码(&P)"
 
 #. Translators: The label for a button that submits Baimiao login information.
 #: addon\globalPlugins\visAware\contentRecognizers\_baimiaoGui.py:50
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:41
 msgid "&Log in"
 msgstr "登录(&L)"
 
 #. Translators: The label for a button that cancels Baimiao login.
 #: addon\globalPlugins\visAware\contentRecognizers\_baimiaoGui.py:52
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:43
 msgid "&Cancel"
 msgstr "取消(&C)"
 
@@ -2952,6 +2955,164 @@ msgstr "### 0.9.10\n"
 #~ "* 改进可浏览图像描述输出，表格内容使用标准 Markdown 表格并避免代码围栏。\n"
 #~ "* 从追问对话框中移除模型和模型提供商名称。\n"
 #~ "* 为可浏览的识别与追问结果对话框添加“复制”和“关闭”按钮。"
+
+#. Translators: An error when Be My Eyes does not return an answer in time.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:393
+msgid "Be My Eyes did not return a description before the request timed out."
+msgstr "Be My Eyes 未能在请求超时前返回图像描述。"
+
+#. Translators: An error when Be My Eyes account data cannot be saved.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:61
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:74
+msgid "Could not save Be My Eyes account details."
+msgstr "无法保存 Be My Eyes 账户信息。"
+
+#. Translators: An error when the Be My Eyes API response cannot be understood.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:152
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:155
+msgid "Be My Eyes returned an invalid response."
+msgstr "Be My Eyes 返回了无效响应。"
+
+#. Translators: An error when a login field is empty.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:161
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:61
+msgid "Email and password are required."
+msgstr "电子邮箱和密码不能为空。"
+
+#. Translators: An error when Be My Eyes requires email verification.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:179
+msgid "Please verify your Be My Eyes account email before logging in."
+msgstr "登录前请验证 Be My Eyes 账户的电子邮箱。"
+
+#. Translators: An error when Be My Eyes requires a password change.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:182
+msgid "Please change your Be My Eyes password before logging in."
+msgstr "登录前请修改 Be My Eyes 密码。"
+
+#. Translators: An error when Be My Eyes does not return a login token.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:186
+msgid "Be My Eyes login returned an invalid response."
+msgstr "Be My Eyes 登录返回了无效响应。"
+
+#. Translators: An error when Be My Eyes has no usable saved login.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:287
+msgid "Please log in to your Be My Eyes account in the engine settings."
+msgstr "请在引擎设置中登录 Be My Eyes 账户。"
+
+#. Translators: An error when Be My Eyes cannot create a chat.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:202
+msgid "Be My Eyes could not create a chat."
+msgstr "Be My Eyes 无法创建对话。"
+
+#. Translators: An error when Be My Eyes cannot confirm image upload completion.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:224
+msgid "Be My Eyes could not confirm that the image was uploaded."
+msgstr "Be My Eyes 无法确认图像已上传。"
+
+#. Translators: A previous question may still produce a reply in this Be My Eyes chat.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:233
+msgid ""
+"A previous Be My Eyes question is still pending or was interrupted. Recognize the image again before asking another question."
+msgstr ""
+"上一个 Be My Eyes 追问仍在等待回复，或已被中断。请重新识别图像后再提出其他问题。"
+
+#. Translators: An error when the Be My Eyes gateway cannot establish a session.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:297
+msgid "Be My Eyes returned an invalid gateway session."
+msgstr "Be My Eyes 返回了无效的聊天会话。"
+
+#. Translators: An error when Be My Eyes gateway authentication fails.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:306
+msgid "Be My Eyes gateway authentication failed."
+msgstr "Be My Eyes 聊天身份验证失败。"
+
+#. Translators: An error when Be My Eyes gateway authentication cannot be confirmed.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:313
+msgid "Be My Eyes gateway authentication was not confirmed."
+msgstr "未能确认 Be My Eyes 聊天身份验证结果。"
+
+#. Translators: An error when Be My Eyes returns incomplete image upload instructions.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:414
+msgid "Be My Eyes returned invalid upload configuration."
+msgstr "Be My Eyes 返回了无效的上传配置。"
+
+#. Translators: An error when Be My Eyes returns invalid image size limits.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:433
+msgid "Be My Eyes returned invalid account configuration."
+msgstr "Be My Eyes 返回了无效的账户配置。"
+
+#. Translators: An error when the saved Be My Eyes login is no longer valid.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:138
+msgid "Be My Eyes login has expired. Please log in again."
+msgstr "Be My Eyes 登录已过期。请重新登录。"
+
+#. Translators: A permission error which does not invalidate the saved Be My Eyes login.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:141
+msgid "Be My Eyes denied access to this resource."
+msgstr "Be My Eyes 拒绝访问此资源。"
+
+#. Translators: An error when the Be My Eyes chat connection closes before an answer.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesClient.py:354
+msgid "The Be My Eyes chat connection closed. Please try again."
+msgstr "Be My Eyes 聊天连接已关闭。请重试。"
+
+#. Translators: Be My Eyes account email field.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:35
+msgid "&Email"
+msgstr "电子邮箱(&E)"
+
+#. Translators: Title of the Be My Eyes login error dialog.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:107
+msgid "Be My Eyes Login Failed"
+msgstr "Be My Eyes 登录失败"
+
+#. Translators: Title of the Be My Eyes login dialog.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:24
+msgid "Log in to Be My Eyes"
+msgstr "登录 Be My Eyes"
+
+#. Translators: An unexpected error while logging in to Be My Eyes.
+#: addon\globalPlugins\visAware\imageDescribers\_beMyEyesGui.py:80
+msgid "Be My Eyes login failed with an unexpected error."
+msgstr "Be My Eyes 登录时发生意外错误。"
+
+#. Translators: The Be My Eyes image description engine.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:26
+msgid "Be My Eyes / Be My AI"
+msgstr "Be My Eyes / Be My AI"
+
+#. Translators: Account management button; {account} is the saved name and email.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:40
+#, python-brace-format
+msgid "Log out of Be My Eyes ({account})"
+msgstr "退出 Be My Eyes（{account}）"
+
+#. Translators: Button for logging out of Be My Eyes.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:43
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:60
+msgid "Log out of Be My Eyes"
+msgstr "退出 Be My Eyes"
+
+#. Translators: Account management button when the saved login expired.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:46
+#, python-brace-format
+msgid "Log in to Be My Eyes again ({account})..."
+msgstr "重新登录 Be My Eyes（{account}）..."
+
+#. Translators: Button for opening the Be My Eyes login dialog.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:49
+msgid "Log in to Be My Eyes..."
+msgstr "登录 Be My Eyes..."
+
+#. Translators: Confirmation before deleting the locally saved Be My Eyes login.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:58
+msgid "Are you sure you want to log out of Be My Eyes?"
+msgstr "确定要退出 Be My Eyes 吗？"
+
+#. Translators: An error when a saved Be My Eyes result has no conversation to continue.
+#: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:97
+msgid "The previous Be My Eyes result cannot be used for follow-up questions."
+msgstr "之前的 Be My Eyes 结果无法用于追问。"
 
 #~ msgid "Gemini 2.5 Flash (stable)"
 #~ msgstr "Gemini 2.5 Flash（稳定版）"
