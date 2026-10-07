@@ -611,14 +611,23 @@ class SpecificEnginePanel(SettingsPanel):
 				self.settingsSizer.Hide(sizer)
 
 		for setting in engine.supportedSettings:
-			if setting.name.startswith("autoRecognition") or not engine.isSupported(setting.name):
+			if setting.name.startswith("autoRecognition"):
+				continue
+			isSupported = engine.isSupported(setting.name)
+			createBeforeSupported = (
+				isinstance(setting, TextInputEngineSetting) and setting.refreshSettingsOnChange
+			)
+			if not isSupported and not createBeforeSupported:
 				continue
 			if setting.name == changedSetting:
 				continue
 			if setting.name in self._sizerDict:
-				self._updateControlValue(setting, engine)
+				if isSupported:
+					self._updateControlValue(setting, engine)
 			else:
 				self._createControl(setting, engine)
+				if not isSupported:
+					self.settingsSizer.Hide(self._sizerDict[setting.name])
 
 		self.settingsSizer.Layout()
 
@@ -689,7 +698,12 @@ class SpecificEnginePanel(SettingsPanel):
 			with wx.EventBlocker(choiceCtrl):
 				choiceCtrl.Clear()
 				choiceCtrl.AppendItems([opt.displayName for opt in options])
-				choiceCtrl.ChangeValue(str(getattr(engine, setting.name)))
+				currentValue = str(getattr(engine, setting.name))
+				currentDisplay = next(
+					(opt.displayName for opt in options if opt.id == currentValue),
+					currentValue,
+				)
+				choiceCtrl.ChangeValue(currentDisplay)
 		except AttributeError:
 			pass
 
@@ -742,7 +756,16 @@ class SpecificEnginePanel(SettingsPanel):
 		)
 		choiceCtrl = labeledControl.control
 		setattr(self, f"{setting.name}ComboBox", choiceCtrl)
-		choiceCtrl.SetValue(str(getattr(engine, setting.name)))
+		currentValue = str(getattr(engine, setting.name))
+		currentDisplay = next(
+			(
+				opt.displayName
+				for opt in getattr(engine, setting.optionsPropertyName).values()
+				if opt.id == currentValue
+			),
+			currentValue,
+		)
+		choiceCtrl.SetValue(currentDisplay)
 		changer = TextInputEngineSettingChanger(setting, engine, self)
 		choiceCtrl.Bind(wx.EVT_TEXT, changer)
 		choiceCtrl.Bind(wx.EVT_COMBOBOX, changer)

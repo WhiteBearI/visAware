@@ -180,6 +180,7 @@ class RecognitionRequest:
 	streamResult: bool
 	prompt: str | None = None
 	isAutomaticRecognition: bool = False
+	cancellationChecker: Callable[[], None] | None = None
 
 
 def getConfigChoiceValue(configSection: Any, configName: str, configList: List[Tuple[str, str]]) -> str:
@@ -405,7 +406,11 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		"""Returns a raw non-streaming follow-up response, when a provider has one."""
 		return None
 
-	def _buildRecognitionRequest(self, isAutomaticRecognition: bool = False) -> RecognitionRequest:
+	def _buildRecognitionRequest(
+		self,
+		isAutomaticRecognition: bool = False,
+		cancellationChecker: Callable[[], None] | None = None,
+	) -> RecognitionRequest:
 		"""Captures request options, including the effective image-description prompt."""
 		prompt = getattr(self, "prompt", None)
 		if (
@@ -424,6 +429,7 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 			streamResult=self.streamResult,
 			prompt=prompt if isinstance(prompt, str) and prompt.strip() else None,
 			isAutomaticRecognition=isAutomaticRecognition,
+			cancellationChecker=cancellationChecker,
 		)
 
 	def recognize(
@@ -445,9 +451,12 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		:param runInBackground: False to run on the caller's existing worker thread.
 		:param cancellationEvent: An already armed event for serialized recognition.
 		"""
-		request = self._buildRecognitionRequest(isAutomaticRecognition)
 		if cancellationEvent is None:
 			cancellationEvent = Event()
+		request = self._buildRecognitionRequest(
+			isAutomaticRecognition,
+			lambda: self._checkCancelled(cancellationEvent),
+		)
 		self._cancellationEvent = cancellationEvent
 		if not runInBackground:
 			self._recognitionThread = current_thread()
@@ -480,9 +489,12 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		:param runInBackground: False to run on the caller's existing worker thread.
 		:param cancellationEvent: An already armed event for serialized recognition.
 		"""
-		request = self._buildRecognitionRequest(isAutomaticRecognition)
 		if cancellationEvent is None:
 			cancellationEvent = Event()
+		request = self._buildRecognitionRequest(
+			isAutomaticRecognition,
+			lambda: self._checkCancelled(cancellationEvent),
+		)
 		self._cancellationEvent = cancellationEvent
 		if not runInBackground:
 			self._recognitionThread = current_thread()

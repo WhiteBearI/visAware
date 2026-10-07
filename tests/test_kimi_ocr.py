@@ -45,6 +45,22 @@ def load_kimi_ocr_module():
 		module = types.ModuleType(moduleName)
 		module.__path__ = []  # type: ignore[attr-defined]
 		sys.modules[moduleName] = module
+	networkModule = types.ModuleType("addon.globalPlugins.visAware.network")
+	networkModule.sendRequest = lambda *args, **kwargs: types.SimpleNamespace(
+		json=lambda: {
+			"data": [
+				{"id": "k3-256k"},
+				{"id": "k3"},
+				{"id": "kimi-for-coding"},
+				{"id": "kimi-for-coding-highspeed"},
+				{"id": "kimi-k3"},
+				{"id": "kimi-k2.7-code"},
+				{"id": "kimi-k2.7-code-highspeed"},
+				{"id": "kimi-k2.6"},
+			]
+		},
+	)
+	sys.modules[networkModule.__name__] = networkModule
 
 	pilModule = types.ModuleType("PIL")
 	pilImageModule = types.ModuleType("PIL.Image")
@@ -59,6 +75,8 @@ def load_kimi_ocr_module():
 
 	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
 	settingsModule.ChoiceEngineSetting = Setting
+	settingsModule.EditableChoiceEngineSetting = Setting
+	settingsModule.ButtonEngineSetting = Setting
 	settingsModule.TextInputEngineSetting = Setting
 	sys.modules[settingsModule.__name__] = settingsModule
 
@@ -223,6 +241,7 @@ class KimiOCRTestCase(unittest.TestCase):
 		module = load_kimi_ocr_module()
 		engine = module.CustomContentRecognizer()
 		engine.apiKey = "secret"
+		engine.service = "platformGlobal"
 		engine.baseUrl = "https://api.moonshot.ai/v1"
 		engine.model = "kimi-k2.6"
 		request = engine._buildRequestParams(b"image", module.RecognitionRequest())
@@ -240,16 +259,23 @@ class KimiOCRTestCase(unittest.TestCase):
 
 		self.assertEqual(
 			list(engine.availableModels),
-			["k3-256k", "k3", "kimi-for-coding", "kimi-for-coding-highspeed"],
+			[module.KIMI_AUTO_MODEL],
 		)
 		engine.baseUrl = "https://api.moonshot.ai/v1"
-		self.assertEqual(engine.model, "kimi-k3")
+		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
+		engine._resolvedModels = list(module.getKimiModelChoices(engine.baseUrl))
 		self.assertEqual(
 			list(engine.availableModels),
-			["kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"],
+			[
+				module.KIMI_AUTO_MODEL,
+				"kimi-k3",
+				"kimi-k2.7-code",
+				"kimi-k2.7-code-highspeed",
+				"kimi-k2.6",
+			],
 		)
 		engine.baseUrl = "https://api.moonshot.cn/v1"
-		self.assertEqual(engine.model, "kimi-k3")
+		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
 
 	def test_k3_preserves_max_reasoning_effort(self) -> None:
 		module = load_kimi_ocr_module()

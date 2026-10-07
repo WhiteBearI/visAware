@@ -10,6 +10,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 import json
 import time
+from collections.abc import Callable
 from typing import Any
 
 import addonHandler
@@ -25,14 +26,15 @@ from ..kimiModels import (
 	applyKimiThinking,
 	buildKimiChatCompletionsUrl,
 	buildKimiModelsUrl,
-	getKimiModelChoices,
+	filterKimiModels,
+	getPreferredKimiModel,
 	isKimiK26Model,
 	isKimiK3Model,
 	isKimiK27Model,
-	isOfficialKimiBaseUrl,
 	normalizeKimiReasoningEffortForModel,
 	requiresKimiReasoningContent,
 	requiresPreservedThinking,
+	resolveKimiConnection,
 )
 from .actions import JPEG_QUALITY, Screenshot, formatScreenshotPromptContext
 from .decision import AGENT_ACTION_SCHEMA, AgentDecision, parseAgentDecision
@@ -58,6 +60,9 @@ class KimiAgentSettings:
 	imageQuality: int = JPEG_QUALITY
 	source: str = ""
 	reasoningEffort: str = "high"
+	service: str = "auto"
+	resolveConnection: bool = False
+	onConnectionResolved: Callable[[str, list[str]], None] | None = None
 
 
 class KimiAgentClient:
@@ -65,6 +70,10 @@ class KimiAgentClient:
 		self.apiKey = settings.apiKey
 		self.baseUrl = (settings.baseUrl or DEFAULT_KIMI_BASE_URL).rstrip("/")
 		self.model = settings.model or DEFAULT_KIMI_AGENT_MODEL
+		self.service = settings.service
+		self._onConnectionResolved = settings.onConnectionResolved
+		self._resolveConnection = settings.resolveConnection
+		self._connectionResolved = not self._resolveConnection
 		self.imageQuality = settings.imageQuality
 		self.reasoningEffort = normalizeKimiReasoningEffortForModel(self.model, settings.reasoningEffort)
 		if not self.apiKey:
@@ -78,8 +87,33 @@ class KimiAgentClient:
 		)
 		self._messages: list[dict[str, Any]] = []
 		self._pendingToolUseId: str | None = None
+		self._cancellationChecker: Callable[[], None] | None = None
+
+	def setCancellationChecker(self, cancellationChecker: Callable[[], None]) -> None:
+		self._cancellationChecker = cancellationChecker
+
+	def _ensureConnection(self) -> None:
+		if callable(self._cancellationChecker):
+			self._cancellationChecker()
+		if self._connectionResolved:
+			return
+		baseUrl, models = resolveKimiConnection(
+			self.apiKey,
+			self.service,
+			self.baseUrl,
+			self.model,
+			cancellationChecker=self._cancellationChecker,
+		)
+		self.baseUrl = baseUrl
+		if self._onConnectionResolved:
+			self._onConnectionResolved(baseUrl, models)
+		if self.model == "__auto__":
+			self.model = getPreferredKimiModel(baseUrl, models)
+		self.reasoningEffort = normalizeKimiReasoningEffortForModel(self.model, self.reasoningEffort)
+		self._connectionResolved = True
 
 	def nextAction(self, goal: str, screenshot: Screenshot, history: list[str]) -> AgentDecision:
+		self._ensureConnection()
 		self._buildMessages(goal, screenshot, history)
 		payload: dict[str, Any] = {
 			"model": self.model,
@@ -126,8 +160,9 @@ class KimiAgentClient:
 		"""Uses Kimi's recommended streaming path for thinking tool loops."""
 		return isKimiK27Model(self.model) or (isKimiK26Model(self.model) and self.reasoningEffort != "none")
 
-	@staticmethod
-	def _sendCompletion(requestParams: dict[str, Any]) -> dict[str, Any]:
+	def _sendCompletion(self, requestParams: dict[str, Any]) -> dict[str, Any]:
+		if callable(self._cancellationChecker):
+			requestParams = {**requestParams, "cancelCheck": self._cancellationChecker}
 		if requestParams["json"].get("stream"):
 			streamState = KimiStreamState()
 			for chunk in network.sendStreamingRequest(**requestParams):
@@ -283,7 +318,6 @@ class KimiAgentClient:
 			return []
 		if not isinstance(apiResult, dict):
 			return []
-		supportedModels = getKimiModelChoices(self.baseUrl) if isOfficialKimiBaseUrl(self.baseUrl) else None
 		modelIds = set()
 		models = apiResult.get("data", [])
 		if not isinstance(models, list):
@@ -291,9 +325,9 @@ class KimiAgentClient:
 		for model in models:
 			if isinstance(model, dict) and isinstance(model.get("id"), str):
 				modelId = model["id"].strip()
-				if modelId and (supportedModels is None or modelId in supportedModels):
+				if modelId:
 					modelIds.add(modelId)
-		return sorted(modelIds)
+		return filterKimiModels(self.baseUrl, sorted(modelIds))
 
 
 def _buildSystemInstruction() -> str:

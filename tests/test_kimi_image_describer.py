@@ -37,6 +37,20 @@ def load_kimi_image_module():
 		sys.modules[moduleName] = module
 
 	networkModule = types.ModuleType("addon.globalPlugins.visAware.network")
+	networkModule.sendRequest = lambda *args, **kwargs: types.SimpleNamespace(
+		json=lambda: {
+			"data": [
+				{"id": "k3-256k"},
+				{"id": "k3"},
+				{"id": "kimi-for-coding"},
+				{"id": "kimi-for-coding-highspeed"},
+				{"id": "kimi-k3"},
+				{"id": "kimi-k2.7-code"},
+				{"id": "kimi-k2.7-code-highspeed"},
+				{"id": "kimi-k2.6"},
+			]
+		},
+	)
 	sys.modules[networkModule.__name__] = networkModule
 
 	conversationModule = types.ModuleType("addon.globalPlugins.visAware.conversation")
@@ -53,6 +67,8 @@ def load_kimi_image_module():
 	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
 	settingsModule.BooleanEngineSetting = Setting
 	settingsModule.ChoiceEngineSetting = Setting
+	settingsModule.EditableChoiceEngineSetting = Setting
+	settingsModule.ButtonEngineSetting = Setting
 	settingsModule.TextInputEngineSetting = Setting
 	sys.modules[settingsModule.__name__] = settingsModule
 
@@ -264,21 +280,103 @@ class KimiImageDescriberTestCase(unittest.TestCase):
 		self.assertTrue(baseUrlSetting.refreshSettingsOnChange)
 		self.assertEqual(
 			list(engine.availableModels),
-			["k3-256k", "k3", "kimi-for-coding", "kimi-for-coding-highspeed"],
+			[module.KIMI_AUTO_MODEL],
 		)
 		engine.baseUrl = "https://api.moonshot.ai/v1"
-		self.assertEqual(engine.model, "kimi-k3")
+		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
+		engine._resolvedModels = list(module.getKimiModelChoices(engine.baseUrl))
 		self.assertEqual(
 			list(engine.availableModels),
-			["kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"],
+			[
+				module.KIMI_AUTO_MODEL,
+				"kimi-k3",
+				"kimi-k2.7-code",
+				"kimi-k2.7-code-highspeed",
+				"kimi-k2.6",
+			],
 		)
 		engine.baseUrl = "https://api.moonshot.cn/v1"
-		self.assertEqual(engine.model, "kimi-k3")
+		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
+
+	def test_automatic_connection_discovery_is_shared_between_instances(self) -> None:
+		module = load_kimi_image_module()
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		requests = []
+		originalSendRequest = networkModule.sendRequest
+		networkModule.sendRequest = lambda *args, **kwargs: (
+			requests.append((args, kwargs)) or originalSendRequest(*args, **kwargs)
+		)
+		try:
+			for _ in range(2):
+				engine = module.CustomContentRecognizer()
+				engine.apiKey = "secret"
+				engine.service = "platformGlobal"
+				engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
+		finally:
+			networkModule.sendRequest = originalSendRequest
+
+		self.assertEqual(len(requests), 1)
+
+	def test_custom_manual_model_does_not_cache_empty_discovery(self) -> None:
+		module = load_kimi_image_module()
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		requests = []
+		originalSendRequest = networkModule.sendRequest
+		networkModule.sendRequest = lambda *args, **kwargs: (
+			requests.append((args, kwargs)) or originalSendRequest(*args, **kwargs)
+		)
+		try:
+			engine = module.CustomContentRecognizer()
+			engine.apiKey = "secret"
+			engine.service = "custom"
+			engine.baseUrl = "https://proxy.example/v1"
+			engine.model = "proxy-model"
+			engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
+			engine.model = module.KIMI_AUTO_MODEL
+			engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
+		finally:
+			networkModule.sendRequest = originalSendRequest
+
+		self.assertEqual(len(requests), 1)
+
+	def test_custom_discovery_propagates_cancellation(self) -> None:
+		module = load_kimi_image_module()
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		cancellationError = type("CancellationError", (Exception,), {})
+		networkModule.sendRequest = lambda *args, **kwargs: (_ for _ in ()).throw(cancellationError())
+		engine = module.CustomContentRecognizer()
+		engine.apiKey = "secret"
+		engine.service = "custom"
+		engine.baseUrl = "https://proxy.example/v1"
+
+		with self.assertRaises(cancellationError):
+			engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
+
+	def test_custom_discovery_selects_first_returned_model(self) -> None:
+		module = load_kimi_image_module()
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		originalSendRequest = networkModule.sendRequest
+		networkModule.sendRequest = lambda *args, **kwargs: type(
+			"Response",
+			(),
+			{"json": lambda self: {"data": [{"id": "proxy-vision-model"}]}},
+		)()
+		try:
+			engine = module.CustomContentRecognizer()
+			engine.apiKey = "secret"
+			engine.service = "custom"
+			engine.baseUrl = "https://proxy.example/v1"
+			engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
+		finally:
+			networkModule.sendRequest = originalSendRequest
+
+		self.assertEqual(engine.model, "proxy-vision-model")
 
 	def test_k26_uses_thinking_keep_all_for_follow_up(self) -> None:
 		module = load_kimi_image_module()
 		engine = module.CustomContentRecognizer()
 		engine.apiKey = "secret"
+		engine.service = "platformGlobal"
 		engine.baseUrl = "https://api.moonshot.ai/v1"
 		engine.model = "kimi-k2.6"
 		engine.reasoningEffort = "high"

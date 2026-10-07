@@ -197,8 +197,59 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 			["kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"],
 		)
 		self.assertEqual(modelsModule.getDefaultKimiModel("https://api.moonshot.cn/v1"), "kimi-k3")
+		self.assertEqual(
+			modelsModule.getPreferredKimiModel(
+				"https://api.kimi.com/coding/v1",
+				["k3-256k", "kimi-for-coding"],
+			),
+			"kimi-for-coding",
+		)
 
-	def test_official_model_list_only_returns_supported_models(self) -> None:
+	def test_connection_discovery_receives_cancellation_checker(self) -> None:
+		module = load_kimi_agent_module()
+		captured = {}
+
+		def resolve(*args, **kwargs):
+			captured.update(kwargs)
+			return "https://api.kimi.com/coding/v1", ["kimi-for-coding"]
+
+		module.resolveKimiConnection = resolve
+
+		def checker():
+			pass
+
+		client = module.KimiAgentClient(
+			module.KimiAgentSettings(apiKey="secret", resolveConnection=True),
+		)
+		client.setCancellationChecker(checker)
+		client._ensureConnection()
+		self.assertIs(captured["cancellationChecker"], checker)
+
+	def test_connection_discovery_checks_cancellation_after_request(self) -> None:
+		load_kimi_agent_module()
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		cancellationError = type("CancellationError", (Exception,), {})
+		checks = 0
+
+		def checker() -> None:
+			nonlocal checks
+			checks += 1
+			if checks == 2:
+				raise cancellationError()
+
+		networkModule.sendRequest = lambda *args, **kwargs: _FakeResponse(
+			{"data": [{"id": "kimi-for-coding"}]},
+		)
+		with self.assertRaises(cancellationError):
+			modelsModule.resolveKimiConnection(
+				"secret",
+				"kimiCodeCn",
+				cancellationChecker=checker,
+			)
+		self.assertEqual(checks, 2)
+
+	def test_model_list_preserves_discovered_models(self) -> None:
 		module = load_kimi_agent_module()
 		module.network.sendRequest = lambda *args, **kwargs: _FakeResponse(
 			{"data": [{"id": "text-only"}, {"id": "k3"}, {"id": "kimi-k3"}]},
@@ -210,6 +261,69 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 		self.assertEqual(client.listModels(), ["kimi-k3"])
 		client.baseUrl = "https://proxy.example/v1"
 		self.assertEqual(client.listModels(), ["k3", "kimi-k3", "text-only"])
+
+	def test_connection_resolution_preserves_legacy_custom_url_and_models(self) -> None:
+		load_kimi_agent_module()
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		requests = []
+
+		def sendRequest(*args, **kwargs):
+			requests.append((args, kwargs))
+			return _FakeResponse({"data": [{"id": "text-only"}, {"id": "kimi-for-coding"}]})
+
+		networkModule.sendRequest = sendRequest
+		self.assertEqual(
+			modelsModule.resolveKimiConnection("secret", "auto", "https://proxy.example/v1"),
+			("https://proxy.example/v1", ["text-only", "kimi-for-coding"]),
+		)
+		self.assertEqual(
+			modelsModule.resolveKimiConnection("secret", "kimiCodeCn"),
+			("https://api.kimi.com/coding/v1", ["kimi-for-coding"]),
+		)
+		self.assertEqual(
+			[call[0][1] for call in requests],
+			[
+				"https://proxy.example/v1/models",
+				"https://api.kimi.com/coding/v1/models",
+			],
+		)
+
+	def test_manual_custom_model_does_not_require_model_discovery(self) -> None:
+		load_kimi_agent_module()
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+		networkModule.sendRequest = lambda *args, **kwargs: self.fail(
+			"manual custom models should not probe /models"
+		)
+		self.assertEqual(
+			modelsModule.resolveKimiConnection(
+				"secret",
+				"custom",
+				"https://proxy.example/v1",
+				model="proxy-model",
+			),
+			("https://proxy.example/v1", []),
+		)
+
+	def test_custom_auto_model_requires_model_discovery(self) -> None:
+		load_kimi_agent_module()
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
+
+		def sendRequest(*args, **kwargs):
+			error = modelsModule.ApiError("服务不可用")
+			error.errorCode = 404
+			raise error
+
+		networkModule.sendRequest = sendRequest
+		with self.assertRaisesRegex(modelsModule.ApiError, "Enter a model name manually"):
+			modelsModule.resolveKimiConnection(
+				"secret",
+				"custom",
+				"https://proxy.example/v1",
+				model=modelsModule.KIMI_AUTO_MODEL,
+			)
 
 	def test_k3_uses_chat_completions_and_preserves_tool_reasoning(self) -> None:
 		module = load_kimi_agent_module()

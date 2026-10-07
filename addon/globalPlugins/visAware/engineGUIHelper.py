@@ -56,7 +56,20 @@ class TextInputEngineSettingChanger(EngineSettingChanger):
 		:param evt: The wx event.
 		"""
 		evt.Skip()
-		setattr(self.engine, self.setting.name, evt.GetString())
+		value = evt.GetString()
+		if isinstance(self.setting, EditableChoiceEngineSetting):
+			try:
+				value = next(
+					(
+						option.id
+						for option in getattr(self.engine, self.setting.optionsPropertyName).values()
+						if option.displayName == value
+					),
+					value,
+				)
+			except AttributeError:
+				pass
+		setattr(self.engine, self.setting.name, value)
 		if self.panel and hasattr(self.panel, "updateDriverSettings"):
 			self.panel.updateDriverSettings(self.setting.name)
 

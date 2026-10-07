@@ -142,8 +142,13 @@ class AgentSessionRequestThreadTestCase(unittest.TestCase):
 		startedEvent = Event()
 		finishEvent = Event()
 		result = {}
+		cancellationChecker = None
 
 		class Client:
+			def setCancellationChecker(self, checker):
+				nonlocal cancellationChecker
+				cancellationChecker = checker
+
 			def nextAction(self, goal, screenshot, history):
 				startedEvent.set()
 				finishEvent.wait(5)
@@ -164,6 +169,7 @@ class AgentSessionRequestThreadTestCase(unittest.TestCase):
 		self.assertTrue(session._requestThread.is_alive())
 
 		session.cancel()
+		self.assertIs(cancellationChecker.__self__, session)
 		self.assertTrue(self.handles[0].is_set())
 		thread.join(1)
 		self.assertIsInstance(result.get("error"), module.CancellationError)

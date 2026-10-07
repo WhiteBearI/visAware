@@ -15,8 +15,14 @@ import addonHandler
 
 from .. import network
 from ..conversation import QuestionStreamFinished, QuestionStreamText
-from ..engineGUIHelper import BooleanEngineSetting, ChoiceEngineSetting, TextInputEngineSetting
-from ..exceptions import ApiError, AuthenticationError, StreamIncompleteError
+from ..engineGUIHelper import (
+	BooleanEngineSetting,
+	ButtonEngineSetting,
+	ChoiceEngineSetting,
+	EditableChoiceEngineSetting,
+	TextInputEngineSetting,
+)
+from ..exceptions import ApiError, StreamIncompleteError
 from ..kimiAPI import (
 	KimiStreamState,
 	extractKimiAssistantMessage,
@@ -26,20 +32,26 @@ from ..kimiAPI import (
 )
 from ..kimiModels import (
 	DEFAULT_KIMI_BASE_URL,
-	DEFAULT_KIMI_MODEL,
+	KIMI_AUTO_MODEL,
+	KIMI_AUTO_SERVICE,
+	KIMI_CUSTOM_SERVICE,
 	KIMI_REASONING_EFFORTS,
 	applyKimiThinking,
 	buildKimiChatCompletionsUrl,
-	getDefaultKimiModel,
-	getKimiContextWindow,
 	getKimiModelChoices,
+	getKimiContextWindow,
 	getKimiReasoningEffortChoices,
+	getKimiServiceBaseUrl,
+	getKimiServiceChoices,
 	isKimiK26Model,
 	isKimiK3Model,
 	normalizeKimiReasoningEffort,
 	normalizeKimiReasoningEffortForModel,
 	requiresKimiReasoningContent,
 	requiresPreservedThinking,
+	ensureKimiConnection,
+	invalidateKimiConnection,
+	startKimiModelDetection,
 )
 from ..recogHandler import BaseDescriber, RecognitionRequest
 from ._prompts import DEFAULT_IMAGE_DESCRIPTION_PROMPT
@@ -73,8 +85,13 @@ class CustomContentRecognizer(BaseDescriber):
 
 	_apiKey: str = ""
 	_baseUrl: str = DEFAULT_KIMI_BASE_URL
+	_service: str = KIMI_AUTO_SERVICE
+	_resolvedBaseUrl: str | None = None
+	_resolvedModels: list[str] = []
+	_connectionKey: tuple[str, str, str] | None = None
 	_useStreaming: bool = False
-	_model: str = DEFAULT_KIMI_MODEL
+	_model: str = KIMI_AUTO_MODEL
+	_autoModelSelected: bool = True
 	_reasoningEffort: str = "high"
 	_prompt: str = DEFAULT_KIMI_PROMPT
 
@@ -86,22 +103,33 @@ class CustomContentRecognizer(BaseDescriber):
 				# Translators: The label for the text field to enter the Kimi API key.
 				displayNameWithAccelerator=_("API &key"),
 			),
+			ChoiceEngineSetting(
+				name="service",
+				# Translators: The label for the Kimi service endpoint.
+				displayNameWithAccelerator=_("Kimi &service"),
+				optionsPropertyName="serviceChoices",
+			),
 			TextInputEngineSetting(
 				name="baseUrl",
 				# Translators: The label for the text field to enter the Kimi API base URL.
 				displayNameWithAccelerator=_("Base &URL"),
 				refreshSettingsOnChange=True,
 			),
-			BooleanEngineSetting(
-				"useStreaming",
-				# Translators: The label for an engine setting to enable streaming output.
-				_("&Enable streaming output (if available)"),
+			ButtonEngineSetting(
+				name="detectModels",
+				# Translators: The label for the button that detects Kimi services and models.
+				displayNameWithAccelerator=_("Detect service and &models"),
 			),
-			ChoiceEngineSetting(
+			EditableChoiceEngineSetting(
 				name="model",
 				# Translators: The label for a setting to select the Kimi model.
 				displayNameWithAccelerator=_("&Model"),
 				optionsPropertyName="availableModels",
+			),
+			BooleanEngineSetting(
+				"useStreaming",
+				# Translators: The label for an engine setting to enable streaming output.
+				_("&Enable streaming output (if available)"),
 			),
 			self.autoRecognitionModelSetting(),
 			ChoiceEngineSetting(
@@ -128,6 +156,31 @@ class CustomContentRecognizer(BaseDescriber):
 	@apiKey.setter
 	def apiKey(self, value: str) -> None:
 		self._apiKey = value.strip()
+		self._invalidateConnection()
+
+	@property
+	def service(self) -> str:
+		return self._service
+
+	@service.setter
+	def service(self, value: str) -> None:
+		previousService = self._service
+		value = value if value in getKimiServiceChoices() else KIMI_AUTO_SERVICE
+		self._service = value
+		if value not in {KIMI_AUTO_SERVICE, KIMI_CUSTOM_SERVICE}:
+			self._baseUrl = getKimiServiceBaseUrl(value)
+			if self.model not in getKimiModelChoices(self._baseUrl):
+				self._autoModelSelected = True
+				self._model = KIMI_AUTO_MODEL
+		elif value == KIMI_AUTO_SERVICE and previousService == KIMI_CUSTOM_SERVICE:
+			self._baseUrl = DEFAULT_KIMI_BASE_URL
+			self._autoModelSelected = True
+			self._model = KIMI_AUTO_MODEL
+		self._invalidateConnection()
+
+	@property
+	def serviceChoices(self) -> dict:
+		return self.generateStringSettings(getKimiServiceChoices())
 
 	@property
 	def baseUrl(self) -> str:
@@ -136,9 +189,7 @@ class CustomContentRecognizer(BaseDescriber):
 	@baseUrl.setter
 	def baseUrl(self, value: str) -> None:
 		self._baseUrl = value.strip().rstrip("/") or DEFAULT_KIMI_BASE_URL
-		if self.model not in getKimiModelChoices(self._baseUrl):
-			self._model = getDefaultKimiModel(self._baseUrl)
-			self._normalizeReasoningEffort()
+		self._invalidateConnection()
 
 	@property
 	def useStreaming(self) -> bool:
@@ -156,8 +207,24 @@ class CustomContentRecognizer(BaseDescriber):
 	@model.setter
 	def model(self, value: str) -> None:
 		value = value.strip()
-		self._model = value if value in self.availableModels else getDefaultKimiModel(self.baseUrl)
+		if value == _("Auto-select (on first use)"):
+			value = KIMI_AUTO_MODEL
+		self._autoModelSelected = not value or value == KIMI_AUTO_MODEL
+		self._model = value or KIMI_AUTO_MODEL
+		if self._autoModelSelected:
+			self._resolvedBaseUrl = None
+			self._resolvedModels = []
+			self._connectionKey = None
 		self._normalizeReasoningEffort()
+
+	def saveSettings(self) -> None:
+		runtimeModel = self._model
+		if self._autoModelSelected:
+			self._model = KIMI_AUTO_MODEL
+		try:
+			super().saveSettings()
+		finally:
+			self._model = runtimeModel
 
 	@property
 	def reasoningEffort(self) -> str:
@@ -178,7 +245,15 @@ class CustomContentRecognizer(BaseDescriber):
 
 	@property
 	def availableModels(self) -> dict:
-		return self.generateStringSettings(getKimiModelChoices(self.baseUrl))
+		models = list(self._resolvedModels) or [KIMI_AUTO_MODEL]
+		if self.model and self.model != KIMI_AUTO_MODEL and self.model not in models:
+			models.append(self.model)
+		return self.generateStringSettings(
+			{
+				KIMI_AUTO_MODEL: _("Auto-select (on first use)"),
+				**{model: model for model in models if model != KIMI_AUTO_MODEL},
+			}
+		)
 
 	@property
 	def reasoningEffortChoices(self) -> dict:
@@ -190,12 +265,36 @@ class CustomContentRecognizer(BaseDescriber):
 		return True
 
 	def isSupported(self, settingName: str) -> bool:
+		if settingName == "baseUrl":
+			return self.service == KIMI_CUSTOM_SERVICE
 		if settingName == "reasoningEffort":
 			return isKimiK3Model(self.model) or isKimiK26Model(self.model)
 		return super().isSupported(settingName)
 
 	def _normalizeReasoningEffort(self) -> None:
 		self._reasoningEffort = normalizeKimiReasoningEffortForModel(self.model, self._reasoningEffort)
+
+	def _invalidateConnection(self) -> None:
+		invalidateKimiConnection(self)
+
+	def _ensureConnection(
+		self,
+		forceDiscovery: bool = False,
+		cancellationChecker: Callable[[], None] | None = None,
+		discoveryTimeout: float | None = None,
+	) -> None:
+		ensureKimiConnection(
+			self,
+			forceDiscovery=forceDiscovery,
+			cancellationChecker=cancellationChecker,
+			discoveryTimeout=discoveryTimeout,
+			missingKeyMessage=_("API key is missing. Please configure it in the Kimi engine settings."),
+		)
+
+	def detectModelsChanger(self, evt: Any) -> None:
+		startKimiModelDetection(self, evt)
+
+	fetchModelsChanger = detectModelsChanger
 
 	def _buildHeaders(self) -> dict[str, str]:
 		return {
@@ -204,11 +303,10 @@ class CustomContentRecognizer(BaseDescriber):
 		}
 
 	def _buildRequestParams(self, imageContent: bytes, request: RecognitionRequest) -> dict:
-		if not self.apiKey:
-			# Translators: An error message if the Kimi API key is missing.
-			raise AuthenticationError(
-				_("API key is missing. Please configure it in the Kimi engine settings."),
-			)
+		self._ensureConnection(
+			cancellationChecker=getattr(request, "cancellationChecker", None),
+			discoveryTimeout=25 if getattr(request, "isAutomaticRecognition", False) else None,
+		)
 		payload: dict[str, Any] = {
 			"model": self.model,
 			"max_completion_tokens": KIMI_MAX_COMPLETION_TOKENS,
@@ -220,10 +318,11 @@ class CustomContentRecognizer(BaseDescriber):
 			payload["stream_options"] = {"include_usage": True}
 		return {
 			"method": "POST",
-			"url": buildKimiChatCompletionsUrl(self.baseUrl),
+			"url": buildKimiChatCompletionsUrl(self._resolvedBaseUrl or self.baseUrl),
 			"headers": self._buildHeaders(),
 			"json": payload,
 			"timeout": KIMI_REQUEST_TIMEOUT,
+			"cancelCheck": getattr(request, "cancellationChecker", None),
 		}
 
 	def _buildInitialUserMessage(self, imageContent: bytes, prompt: str | None = None) -> dict[str, Any]:
@@ -263,12 +362,14 @@ class CustomContentRecognizer(BaseDescriber):
 		self._lastQuestionResponse = deepcopy(response)
 		return response
 
-	def _buildQuestionRequestParams(self, context: Any, question: str, stream: bool) -> dict:
-		if not self.apiKey:
-			# Translators: An error message if the Kimi API key is missing.
-			raise AuthenticationError(
-				_("API key is missing. Please configure it in the Kimi engine settings."),
-			)
+	def _buildQuestionRequestParams(
+		self,
+		context: Any,
+		question: str,
+		stream: bool,
+		cancellationChecker: Callable[[], None] | None = None,
+	) -> dict:
+		self._ensureConnection(cancellationChecker=cancellationChecker)
 		imageContent = self.prepareImageContentFromImage(self._getConversationImage(context))
 		initialResponse = getattr(context, "response", None)
 		initialUserMessage = self._buildInitialUserMessage(imageContent)
@@ -301,10 +402,11 @@ class CustomContentRecognizer(BaseDescriber):
 			payload["stream_options"] = {"include_usage": True}
 		return {
 			"method": "POST",
-			"url": buildKimiChatCompletionsUrl(self.baseUrl),
+			"url": buildKimiChatCompletionsUrl(self._resolvedBaseUrl or self.baseUrl),
 			"headers": self._buildHeaders(),
 			"json": payload,
 			"timeout": KIMI_REQUEST_TIMEOUT,
+			"cancelCheck": cancellationChecker,
 		}
 
 	def _assistantMessage(self, response: Any, text: str) -> dict[str, Any]:
@@ -391,7 +493,11 @@ class CustomContentRecognizer(BaseDescriber):
 		cancellationChecker: Callable[[], None] | None = None,
 	) -> str:
 		self._checkQuestionCancelled(cancellationChecker)
-		response = network.sendRequest(**self._buildQuestionRequestParams(context, question, stream=False))
+		response = network.sendRequest(
+			**self._buildQuestionRequestParams(
+				context, question, stream=False, cancellationChecker=cancellationChecker
+			),
+		)
 		self._checkQuestionCancelled(cancellationChecker)
 		apiResult = parseKimiResponse(response.content)
 		_choice, message = validateKimiCompletion(apiResult, {"stop"})
@@ -411,7 +517,12 @@ class CustomContentRecognizer(BaseDescriber):
 		cancellationChecker: Callable[[], None] | None = None,
 	) -> Iterator[QuestionStreamText | QuestionStreamFinished]:
 		self._checkQuestionCancelled(cancellationChecker)
-		requestParams = self._buildQuestionRequestParams(context, question, stream=True)
+		requestParams = self._buildQuestionRequestParams(
+			context,
+			question,
+			stream=True,
+			cancellationChecker=cancellationChecker,
+		)
 		yield from self._iterQuestionStreamingResponse(
 			requestParams,
 			RecognitionRequest(textResult=True, streamResult=True),

@@ -9,6 +9,8 @@ import re
 import time
 from typing import TypeVar, ParamSpec, Any, NoReturn
 from collections.abc import Iterator, Callable
+from queue import Empty, Queue
+from threading import Event, Thread
 
 import addonHandler
 import requests
@@ -143,6 +145,7 @@ def _handleHttpError(e: requests.exceptions.HTTPError) -> NoReturn:
 		# Translators: An error message for authentication failures.
 		raise AuthenticationError(
 			_("Authentication failed. Please check your API key or credentials."),
+			errorCode=statusCode,
 		) from e
 
 	# Handle other client/server errors by providing a concise summary.
@@ -156,6 +159,7 @@ def _handleHttpError(e: requests.exceptions.HTTPError) -> NoReturn:
 				code=statusCode,
 				reason=e.response.reason,
 			),
+			errorCode=statusCode,
 		) from e
 	if not errorDetails:
 		# Translators: Used when an HTTP error response does not include a response body.
@@ -167,6 +171,7 @@ def _handleHttpError(e: requests.exceptions.HTTPError) -> NoReturn:
 			reason=e.response.reason,
 			details=errorDetails,
 		),
+		errorCode=statusCode,
 	) from e
 
 
@@ -208,6 +213,121 @@ def _isRetryableHttpStatus(statusCode: int) -> bool:
 	return statusCode == 429 or statusCode >= 500
 
 
+def _sendRequestCancellable(method: str, url: str, cancelCheck: Callable[[], None], **kwargs: Any):
+	result = Queue()
+	stopEvent = Event()
+	responseHolder: dict[str, requests.Response] = {}
+
+	def closeResponse() -> None:
+		response = responseHolder.get("response")
+		close = getattr(response, "close", None)
+		if callable(close):
+			close()
+
+	def checkCancelled() -> None:
+		try:
+			cancelCheck()
+		except BaseException:
+			stopEvent.set()
+			closeResponse()
+			raise
+
+	def request() -> None:
+		try:
+			requestKwargs = {**kwargs, "stream": True}
+			response = requests.request(method=method, url=url, **requestKwargs)
+			responseHolder["response"] = response
+			if stopEvent.is_set():
+				response.close()
+				return
+			response.raise_for_status()
+			if not kwargs.get("stream"):
+				response.content
+			result.put((response, None))
+		except BaseException as error:
+			if not stopEvent.is_set():
+				result.put((None, error))
+		finally:
+			responseHolder.pop("response", None)
+
+	Thread(target=request, name="VisAwareCancellableRequest", daemon=True).start()
+	while True:
+		checkCancelled()
+		try:
+			response, error = result.get(timeout=0.1)
+		except Empty:
+			continue
+		checkCancelled()
+		if error:
+			if isinstance(error, requests.exceptions.HTTPError):
+				statusCode = error.response.status_code if error.response is not None else None
+				if statusCode is not None and _isRetryableHttpStatus(statusCode):
+					raise error
+				_handleHttpError(error)
+			raise error
+		return response
+
+
+def _iterResponseLinesCancellable(
+	method: str,
+	url: str,
+	cancelCheck: Callable[[], None],
+	**kwargs: Any,
+) -> Iterator[bytes]:
+	result = Queue()
+	done = object()
+	stopEvent = Event()
+	responseHolder: dict[str, requests.Response] = {}
+
+	def closeResponse() -> None:
+		response = responseHolder.get("response")
+		close = getattr(response, "close", None)
+		if callable(close):
+			close()
+
+	def checkCancelled() -> None:
+		try:
+			cancelCheck()
+		except BaseException:
+			stopEvent.set()
+			closeResponse()
+			raise
+
+	def request() -> None:
+		try:
+			with requests.request(method=method, url=url, **kwargs) as response:
+				responseHolder["response"] = response
+				if stopEvent.is_set():
+					return
+				response.raise_for_status()
+				for chunk in response.iter_lines():
+					if stopEvent.is_set():
+						return
+					result.put((chunk, None))
+			result.put((done, None))
+		except BaseException as error:
+			result.put((None, error))
+		finally:
+			responseHolder.pop("response", None)
+
+	Thread(target=request, name="VisAwareCancellableStream", daemon=True).start()
+	try:
+		while True:
+			checkCancelled()
+			try:
+				chunk, error = result.get(timeout=0.1)
+			except Empty:
+				continue
+			if error:
+				raise error
+			if chunk is done:
+				return
+			yield chunk
+	finally:
+		stopEvent.set()
+		closeResponse()
+
+
 @retryOnNetworkError()
 def sendRequest(method: str, url: str, **kwargs: Any) -> requests.Response:
 	"""
@@ -222,9 +342,11 @@ def sendRequest(method: str, url: str, **kwargs: Any) -> requests.Response:
 	:raises ApiError: For other non-retryable client or server HTTP errors.
 	:returns: A `requests.Response` object on success.
 	"""
-	kwargs.pop("cancelCheck", None)
+	cancelCheck = kwargs.pop("cancelCheck", None)
 	if "timeout" not in kwargs:
 		kwargs["timeout"] = 100
+	if callable(cancelCheck):
+		return _sendRequestCancellable(method, url, cancelCheck, **kwargs)
 
 	try:
 		response = requests.request(method=method, url=url, **kwargs)
@@ -270,15 +392,24 @@ def sendStreamingRequest(method: str, url: str, **kwargs: Any) -> Iterator[bytes
 	while attempt < attempts:
 		try:
 			checkCancelled()
-			with requests.request(method=method, url=url, **kwargs) as response:
-				# This will raise an HTTPError for 4xx/5xx responses.
-				response.raise_for_status()
-				for chunk in response.iter_lines():
-					checkCancelled()
-					if chunk:
-						hasYieldedChunk = True
-						yield chunk
-				return
+			if callable(cancelCheck):
+				lines = _iterResponseLinesCancellable(method, url, cancelCheck, **kwargs)
+			else:
+				with requests.request(method=method, url=url, **kwargs) as response:
+					# This will raise an HTTPError for 4xx/5xx responses.
+					response.raise_for_status()
+					lines = response.iter_lines()
+					for chunk in lines:
+						if chunk:
+							hasYieldedChunk = True
+							yield chunk
+					return
+			for chunk in lines:
+				checkCancelled()
+				if chunk:
+					hasYieldedChunk = True
+					yield chunk
+			return
 		except requests.exceptions.HTTPError as e:
 			statusCode = e.response.status_code
 			if not hasYieldedChunk and attempt + 1 < attempts and _isRetryableHttpStatus(statusCode):

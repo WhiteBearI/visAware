@@ -7,12 +7,9 @@
 from __future__ import annotations
 
 import config
-from threading import Thread
 from typing import Any
 
 import addonHandler
-import ui
-import wx
 
 from ...engineGUIHelper import (
 	ButtonEngineSetting,
@@ -21,16 +18,23 @@ from ...engineGUIHelper import (
 	TextInputEngineSetting,
 )
 from ...kimiModels import (
-	DEFAULT_KIMI_AGENT_MODEL,
 	DEFAULT_KIMI_BASE_URL,
+	KIMI_AUTO_MODEL,
+	KIMI_AUTO_SERVICE,
+	KIMI_CUSTOM_SERVICE,
 	KIMI_REASONING_EFFORTS,
-	getDefaultKimiModel,
+	getPreferredKimiModel,
 	getKimiModelChoices,
 	getKimiReasoningEffortChoices,
+	getKimiServiceBaseUrl,
+	getKimiServiceChoices,
+	ensureKimiConnection,
+	invalidateKimiConnection,
 	isKimiK26Model,
 	isKimiK3Model,
 	normalizeKimiReasoningEffort,
 	normalizeKimiReasoningEffortForModel,
+	startKimiModelDetection,
 )
 from ..kimi import KimiAgentClient, KimiAgentSettings
 from ..settings import BaseAgentEngine
@@ -53,7 +57,12 @@ class AgentEngine(BaseAgentEngine):
 
 	_apiKey: str = ""
 	_baseUrl: str = DEFAULT_KIMI_BASE_URL
-	_model: str = DEFAULT_KIMI_AGENT_MODEL
+	_service: str = KIMI_AUTO_SERVICE
+	_resolvedBaseUrl: str | None = None
+	_resolvedModels: list[str] = []
+	_connectionKey: tuple[str, str, str] | None = None
+	_model: str = KIMI_AUTO_MODEL
+	_autoModelSelected: bool = True
 	_reasoningEffort: str = "high"
 	_knownModels: list[str]
 
@@ -65,6 +74,12 @@ class AgentEngine(BaseAgentEngine):
 				# Translators: The label for the Kimi API key used by the Agent.
 				displayNameWithAccelerator=_("API &key"),
 			),
+			ChoiceEngineSetting(
+				name="service",
+				# Translators: The label for the Kimi service endpoint.
+				displayNameWithAccelerator=_("Kimi &service"),
+				optionsPropertyName="serviceChoices",
+			),
 			TextInputEngineSetting(
 				name="baseUrl",
 				# Translators: The label for the Kimi-compatible base URL used by the Agent.
@@ -73,8 +88,8 @@ class AgentEngine(BaseAgentEngine):
 			),
 			ButtonEngineSetting(
 				name="fetchModels",
-				# Translators: The label for the button that fetches Kimi model names.
-				displayNameWithAccelerator=_("&Fetch models"),
+				# Translators: The label for the button that detects Kimi services and models.
+				displayNameWithAccelerator=_("Detect service and &models"),
 			),
 			EditableChoiceEngineSetting(
 				name="model",
@@ -98,6 +113,30 @@ class AgentEngine(BaseAgentEngine):
 	@apiKey.setter
 	def apiKey(self, value: str) -> None:
 		self._apiKey = value.strip()
+		self._invalidateConnection()
+
+	@property
+	def service(self) -> str:
+		return self._service
+
+	@service.setter
+	def service(self, value: str) -> None:
+		previousService = self._service
+		self._service = value if value in getKimiServiceChoices() else KIMI_AUTO_SERVICE
+		if self._service not in {KIMI_AUTO_SERVICE, KIMI_CUSTOM_SERVICE}:
+			self._baseUrl = getKimiServiceBaseUrl(self._service)
+			if self.model not in getKimiModelChoices(self._baseUrl):
+				self._autoModelSelected = True
+				self._model = KIMI_AUTO_MODEL
+		elif self._service == KIMI_AUTO_SERVICE and previousService == KIMI_CUSTOM_SERVICE:
+			self._baseUrl = DEFAULT_KIMI_BASE_URL
+			self._autoModelSelected = True
+			self._model = KIMI_AUTO_MODEL
+		self._invalidateConnection()
+
+	@property
+	def serviceChoices(self) -> dict:
+		return self.generateStringSettings(getKimiServiceChoices())
 
 	@property
 	def baseUrl(self) -> str:
@@ -109,9 +148,7 @@ class AgentEngine(BaseAgentEngine):
 		if baseUrl != self._baseUrl:
 			self._knownModels = []
 		self._baseUrl = baseUrl
-		if self.model not in getKimiModelChoices(self._baseUrl):
-			self._model = getDefaultKimiModel(self._baseUrl)
-			self._normalizeReasoningEffort()
+		self._invalidateConnection()
 
 	@property
 	def model(self) -> str:
@@ -120,7 +157,14 @@ class AgentEngine(BaseAgentEngine):
 	@model.setter
 	def model(self, value: str) -> None:
 		value = value.strip()
-		self._model = value or getDefaultKimiModel(self.baseUrl)
+		if value == _("Auto-select (on first use)"):
+			value = KIMI_AUTO_MODEL
+		self._autoModelSelected = not value or value == KIMI_AUTO_MODEL
+		self._model = value or KIMI_AUTO_MODEL
+		if self._autoModelSelected:
+			self._resolvedBaseUrl = None
+			self._resolvedModels = []
+			self._connectionKey = None
 		self._normalizeReasoningEffort()
 
 	@property
@@ -134,8 +178,9 @@ class AgentEngine(BaseAgentEngine):
 
 	@property
 	def availableModels(self) -> dict:
-		models = {modelName: modelName for modelName in self._getKnownModels()}
-		if self.model and self.model not in models:
+		models = {KIMI_AUTO_MODEL: _("Auto-select (on first use)")}
+		models.update({modelName: modelName for modelName in self._getKnownModels()})
+		if self.model and self.model != KIMI_AUTO_MODEL and self.model not in models:
 			models[self.model] = self.model
 		return self.generateStringSettings(models)
 
@@ -152,7 +197,13 @@ class AgentEngine(BaseAgentEngine):
 		self._loadKnownModelsFromConfig()
 
 	def saveSettings(self) -> None:
-		super().saveSettings()
+		runtimeModel = self._model
+		if self._autoModelSelected:
+			self._model = KIMI_AUTO_MODEL
+		try:
+			super().saveSettings()
+		finally:
+			self._model = runtimeModel
 		if not self.configSectionName:
 			return
 		config.conf[self.configSectionName][self.name][_KNOWN_MODELS_CONFIG_KEY] = self._getKnownModels()
@@ -162,73 +213,41 @@ class AgentEngine(BaseAgentEngine):
 		return True
 
 	def isSupported(self, settingName: str) -> bool:
+		if settingName == "baseUrl":
+			return self.service == KIMI_CUSTOM_SERVICE
 		if settingName == "reasoningEffort":
 			return isKimiK3Model(self.model) or isKimiK26Model(self.model)
 		return super().isSupported(settingName)
 
 	def createClient(self) -> KimiAgentClient:
+		connectionIsCurrent = self._connectionKey == (self.apiKey, self.service, self._baseUrl) and bool(
+			self._resolvedBaseUrl
+		)
 		return KimiAgentClient(
 			KimiAgentSettings(
 				apiKey=self.apiKey,
-				baseUrl=self.baseUrl,
+				baseUrl=self._resolvedBaseUrl if connectionIsCurrent else self.baseUrl,
 				model=self.model,
 				imageQuality=self.imageQuality,
 				reasoningEffort=self.reasoningEffort,
 				source="Agent Kimi engine settings",
+				service=self.service,
+				resolveConnection=not connectionIsCurrent,
+				onConnectionResolved=self._onConnectionResolved,
 			),
 		)
 
-	def fetchModelsChanger(self, evt: wx.CommandEvent) -> None:
-		evt.Skip()
-		button = evt.GetEventObject()
-		parent = button.GetParent()
-		button.Disable()
-		# Translators: Reported while fetching the Kimi model list.
-		ui.message(_("Fetching Kimi model list"))
-		Thread(
-			name="VisAwareKimiFetchModels-agent",
-			target=self._fetchModelsWorker,
-			args=(parent, button),
-			daemon=True,
-		).start()
+	def _onConnectionResolved(self, baseUrl: str, models: list[str]) -> None:
+		self._resolvedBaseUrl = baseUrl
+		self._resolvedModels = list(models)
+		self._connectionKey = (self.apiKey, self.service, self._baseUrl)
+		self._setKnownModels(models)
+		if self._autoModelSelected:
+			self._model = getPreferredKimiModel(baseUrl, models)
+			self._normalizeReasoningEffort()
 
-	def _fetchModelsWorker(self, parent: wx.Window, button: wx.Button) -> None:
-		try:
-			modelNames = self.createClient().listModels()
-		except Exception as e:
-			wx.CallAfter(self._onFetchModelsFailed, button, str(e))
-			return
-		wx.CallAfter(self._onFetchModelsFinished, parent, button, modelNames)
-
-	def _onFetchModelsFinished(
-		self,
-		parent: wx.Window,
-		button: wx.Button,
-		modelNames: list[str],
-	) -> None:
-		button.Enable()
-		if not modelNames:
-			# Translators: Reported when Kimi returns no models.
-			ui.message(_("No Kimi models were found."))
-			return
-		self._setKnownModels(modelNames)
-		if not self.model:
-			self.model = modelNames[0]
-		# Translators: Reported after fetching Kimi models. {count} is the number of models.
-		ui.message(_("Kimi models loaded: {count}").format(count=len(modelNames)))
-		self._refreshSettingsPanel(parent)
-
-	def _onFetchModelsFailed(self, button: wx.Button, message: str) -> None:
-		button.Enable()
-		# Translators: Reported when fetching Kimi models fails. {message} is the error message.
-		ui.message(_("Could not fetch Kimi models: {message}").format(message=message))
-
-	def _refreshSettingsPanel(self, parent: wx.Window) -> None:
-		try:
-			if hasattr(parent, "updateDriverSettings"):
-				parent.updateDriverSettings()
-		except RuntimeError:
-			pass
+	def fetchModelsChanger(self, evt: Any) -> None:
+		startKimiModelDetection(self, evt)
 
 	def _loadKnownModelsFromConfig(self) -> None:
 		if not self.configSectionName:
@@ -254,3 +273,13 @@ class AgentEngine(BaseAgentEngine):
 
 	def _getKnownModels(self) -> list[str]:
 		return list(getattr(self, "_knownModels", []))
+
+	def _invalidateConnection(self) -> None:
+		invalidateKimiConnection(self)
+
+	def _ensureConnection(self, forceDiscovery: bool = False) -> None:
+		ensureKimiConnection(
+			self,
+			forceDiscovery=forceDiscovery,
+			missingKeyMessage=_("API key is missing. Please configure it in the AI Agent settings."),
+		)

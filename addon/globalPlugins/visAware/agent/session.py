@@ -225,6 +225,9 @@ class AgentSession:
 		self._checkCancelled()
 		doneEvent = Event()
 		result: dict[str, AgentDecision | Exception] = {}
+		setCancellationChecker = getattr(client, "setCancellationChecker", None)
+		if callable(setCancellationChecker):
+			setCancellationChecker(self._checkCancelled)
 
 		def request() -> None:
 			try:

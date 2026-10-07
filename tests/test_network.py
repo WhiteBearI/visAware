@@ -7,6 +7,7 @@ import sys
 import types
 import traceback
 import unittest
+from threading import Event
 
 import requests
 
@@ -64,7 +65,9 @@ def _install_module_stubs() -> None:
 		pass
 
 	class ApiError(Exception):
-		pass
+		def __init__(self, message, errorCode=None):
+			super().__init__(message)
+			self.errorCode = errorCode
 
 	class AuthenticationError(ApiError):
 		pass
@@ -167,6 +170,64 @@ class NetworkRequestRetryTestCase(unittest.TestCase):
 
 		self.assertEqual(len(requestCalls), 1)
 		self.assertNotIn("cancelCheck", requestCalls[0])
+
+	def test_send_request_checks_cancellation_while_request_is_pending(self) -> None:
+		requestStarted = Event()
+		releaseRequest = Event()
+		cancelChecks = 0
+
+		def request(**kwargs):
+			requestStarted.set()
+			releaseRequest.wait(5)
+			return _FakeResponse(200)
+
+		def cancelCheck() -> None:
+			nonlocal cancelChecks
+			cancelChecks += 1
+			if cancelChecks > 1:
+				raise RuntimeError
+
+		self.module.requests.request = request
+		try:
+			with self.assertRaises(RuntimeError):
+				self.module.sendRequest("GET", "https://example.test", cancelCheck=cancelCheck)
+			self.assertTrue(requestStarted.is_set())
+		finally:
+			releaseRequest.set()
+
+	def test_send_request_closes_response_when_body_read_is_cancelled(self) -> None:
+		responseReady = Event()
+		responseClosed = Event()
+		releaseBody = Event()
+		cancelChecks = 0
+
+		class Response(_FakeResponse):
+			@property
+			def content(self) -> bytes:
+				responseReady.set()
+				releaseBody.wait(5)
+				return b""
+
+			@content.setter
+			def content(self, _value: bytes) -> None:
+				pass
+
+			def close(self) -> None:
+				responseClosed.set()
+				releaseBody.set()
+
+		self.module.requests.request = lambda **_kwargs: Response(200)
+
+		def cancelCheck() -> None:
+			nonlocal cancelChecks
+			cancelChecks += 1
+			if cancelChecks > 2 and responseReady.is_set():
+				raise RuntimeError
+
+		with self.assertRaises(RuntimeError):
+			self.module.sendRequest("GET", "https://example.test", cancelCheck=cancelCheck)
+		self.assertTrue(responseReady.is_set())
+		self.assertTrue(responseClosed.wait(1))
 
 	def test_send_request_can_disable_retries(self) -> None:
 		requestCalls = []
