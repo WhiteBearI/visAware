@@ -9,7 +9,7 @@ from __future__ import annotations
 import addonHandler
 
 from ..exceptions import ApiError
-from .settings import AgentHandler
+from .engine import AgentHandler
 
 addonHandler.initTranslation()
 

@@ -64,7 +64,7 @@ def load_kimi_image_module():
 			for key, value in kwargs.items():
 				setattr(self, key, value)
 
-	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
+	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
 	settingsModule.BooleanEngineSetting = Setting
 	settingsModule.ChoiceEngineSetting = Setting
 	settingsModule.EditableChoiceEngineSetting = Setting
@@ -83,6 +83,7 @@ def load_kimi_image_module():
 	exceptionsModule = types.ModuleType("addon.globalPlugins.visAware.exceptions")
 	exceptionsModule.ApiError = ApiError
 	exceptionsModule.AuthenticationError = type("AuthenticationError", (ApiError,), {})
+	exceptionsModule.CancellationError = type("CancellationError", (Exception,), {})
 	exceptionsModule.StreamIncompleteError = StreamIncompleteError
 	sys.modules[exceptionsModule.__name__] = exceptionsModule
 
@@ -123,12 +124,20 @@ def load_kimi_image_module():
 		"addon/globalPlugins/visAware/imageDescribers/_prompts.py",
 	)
 	_load_module(
-		"addon.globalPlugins.visAware.kimiModels",
-		"addon/globalPlugins/visAware/kimiModels.py",
+		"addon.globalPlugins.visAware.openaiCompatible",
+		"addon/globalPlugins/visAware/openaiCompatible.py",
 	)
 	_load_module(
-		"addon.globalPlugins.visAware.kimiAPI",
-		"addon/globalPlugins/visAware/kimiAPI.py",
+		"addon.globalPlugins.visAware.kimiProvider",
+		"addon/globalPlugins/visAware/kimiProvider.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware.kimiConnection",
+		"addon/globalPlugins/visAware/kimiConnection.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware._kimiEngine",
+		"addon/globalPlugins/visAware/_kimiEngine.py",
 	)
 	return _load_module(
 		"addon.globalPlugins.visAware.imageDescribers.kimi",
@@ -280,15 +289,17 @@ class KimiImageDescriberTestCase(unittest.TestCase):
 		self.assertTrue(baseUrlSetting.refreshSettingsOnChange)
 		self.assertEqual(
 			list(engine.availableModels),
-			[module.KIMI_AUTO_MODEL],
+			["__auto__"],
 		)
 		engine.baseUrl = "https://api.moonshot.ai/v1"
-		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
-		engine._resolvedModels = list(module.getKimiModelChoices(engine.baseUrl))
+		self.assertEqual(engine.model, "__auto__")
+		engine._resolvedModels = list(
+			sys.modules["addon.globalPlugins.visAware.kimiProvider"].getKimiModelChoices(engine.baseUrl)
+		)
 		self.assertEqual(
 			list(engine.availableModels),
 			[
-				module.KIMI_AUTO_MODEL,
+				"__auto__",
 				"kimi-k3",
 				"kimi-k2.7-code",
 				"kimi-k2.7-code-highspeed",
@@ -296,7 +307,7 @@ class KimiImageDescriberTestCase(unittest.TestCase):
 			],
 		)
 		engine.baseUrl = "https://api.moonshot.cn/v1"
-		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
+		self.assertEqual(engine.model, "__auto__")
 
 	def test_automatic_connection_discovery_is_shared_between_instances(self) -> None:
 		module = load_kimi_image_module()
@@ -332,7 +343,7 @@ class KimiImageDescriberTestCase(unittest.TestCase):
 			engine.baseUrl = "https://proxy.example/v1"
 			engine.model = "proxy-model"
 			engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
-			engine.model = module.KIMI_AUTO_MODEL
+			engine.model = "__auto__"
 			engine._buildRequestParams(b"encoded-image", module.RecognitionRequest(streamResult=False))
 		finally:
 			networkModule.sendRequest = originalSendRequest
@@ -403,7 +414,7 @@ class KimiImageDescriberTestCase(unittest.TestCase):
 
 	def test_context_windows_follow_official_model_limits(self) -> None:
 		load_kimi_image_module()
-		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiProvider"]
 
 		for model in ("k3", "kimi-k3"):
 			self.assertEqual(modelsModule.getKimiContextWindow(model), 1_048_576)

@@ -12,7 +12,7 @@ from typing import Any
 from ..recogHandler import BaseRecognizer, RecognitionRequest
 from ..exceptions import ApiError, AuthenticationError, NetworkError
 from .. import network
-from ..engineGUIHelper import ChoiceEngineSetting, BooleanEngineSetting, TextInputEngineSetting
+from ..engineSettings import ChoiceEngineSetting, BooleanEngineSetting, TextInputEngineSetting
 
 addonHandler.initTranslation()
 

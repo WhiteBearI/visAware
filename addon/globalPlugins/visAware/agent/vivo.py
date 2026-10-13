@@ -11,13 +11,12 @@ from dataclasses import dataclass
 import json
 import re
 from typing import Any
-import uuid
 
 import addonHandler
 from logHandler import log
 
 from .. import network
-from ..contentRecognizers import _vivo_auth
+from .. import vivoAuth, vivoCompletions
 from ..exceptions import ApiError
 from .actions import JPEG_QUALITY, Screenshot, formatScreenshotPromptContext
 from .decision import AGENT_ACTION_SCHEMA, AgentDecision, parseAgentDecision
@@ -26,7 +25,6 @@ addonHandler.initTranslation()
 
 MAX_HISTORY_ITEMS = 4
 MAX_HISTORY_CHARS = 700
-VIVO_AGENT_MODEL = "BlueLM-Vision-Aid"
 
 
 @dataclass(frozen=True)
@@ -37,31 +35,17 @@ class VivoAgentSettings:
 
 
 class VivoAgentClient:
-	_domain = "api-ai.vivo.com.cn"
-	_uri = "/vivogpt/completions"
-	_method = "POST"
-
 	def __init__(self, settings: VivoAgentSettings) -> None:
 		self.imageQuality = settings.imageQuality
 		self.enableThinking = settings.enableThinking
-		self.nvdacnUser, self.nvdacnPass = _vivo_auth.getNvdacnCredentials()
+		self.nvdacnUser, self.nvdacnPass = vivoAuth.getNvdacnCredentials()
 		log.info(
 			f"Vis Aware agent using Vivo settings from {settings.source or 'Agent settings'}, "
-			f"model={VIVO_AGENT_MODEL}, imageQuality={self.imageQuality}, "
+			f"model={vivoCompletions.MODEL}, imageQuality={self.imageQuality}, "
 			f"enableThinking={self.enableThinking}",
 		)
 
 	def nextAction(self, goal: str, screenshot: Screenshot, history: list[str]) -> AgentDecision:
-		requestId = str(uuid.uuid4())
-		queryParams = {"requestId": requestId}
-		headers = _vivo_auth.genSignHeaders(
-			self.nvdacnUser,
-			self.nvdacnPass,
-			self._method,
-			self._uri,
-			queryParams,
-		)
-		headers["Content-Type"] = "application/json"
 		prompt = self._buildPrompt(goal, screenshot, history)
 		extra = {
 			"enable_thinking": self.enableThinking,
@@ -69,37 +53,18 @@ class VivoAgentClient:
 			"max_tokens": 512,
 			"tools": [_buildAgentDecisionTool()],
 		}
-		log.debug(
-			f"Vivo agent request payload excluding image: model={VIVO_AGENT_MODEL}, "
-			f"requestId={requestId}, extraKeys={list(extra)}, "
-			f"enableThinking={self.enableThinking}, promptLength={len(prompt)}, "
-			f"historyItems={len(history)}",
+		messages = [
+			{
+				"role": "user",
+				"content": f"data:image/jpeg;base64,{screenshot.imageBase64}",
+				"contentType": "image",
+			},
+			{"role": "user", "content": prompt, "contentType": "text"},
+		]
+		requestParams = vivoCompletions.buildCompletionsRequest(
+			self.nvdacnUser, self.nvdacnPass, messages, extra
 		)
-		payload = {
-			"model": VIVO_AGENT_MODEL,
-			"sessionId": str(uuid.uuid4()),
-			"provider": "vivo",
-			"messages": [
-				{
-					"role": "user",
-					"content": f"data:image/jpeg;base64,{screenshot.imageBase64}",
-					"contentType": "image",
-				},
-				{
-					"role": "user",
-					"content": prompt,
-					"contentType": "text",
-				},
-			],
-			"extra": extra,
-		}
-		response = network.sendRequest(
-			method=self._method,
-			url=f"https://{self._domain}{self._uri}?requestId={requestId}",
-			headers=headers,
-			json=payload,
-			timeout=75,
-		)
+		response = network.sendRequest(**requestParams, timeout=75)
 		try:
 			apiResult = response.json()
 		except ValueError as e:
@@ -161,15 +126,9 @@ def _buildAgentDecisionTool() -> dict[str, Any]:
 
 
 def _extractToolArguments(apiResult: dict[str, Any]) -> dict[str, Any]:
-	if apiResult.get("code") != 0:
-		errorMessage = apiResult.get("msg", _("Unknown Vivo API error"))
-		errorCode = apiResult.get("code")
-		raise ApiError(
-			_("Vivo API error: {message} (Code: {code})").format(
-				message=errorMessage,
-				code=errorCode,
-			),
-		)
+	errorMessage = vivoCompletions.getApiErrorMessage(apiResult)
+	if errorMessage:
+		raise ApiError(errorMessage)
 	data = apiResult.get("data")
 	if not isinstance(data, dict):
 		raise ApiError(_("Vivo returned malformed agent action data."))

@@ -76,20 +76,13 @@ def _install_module_stubs() -> None:
 
 def load_vivo_auth_module():
 	_install_module_stubs()
-	modulePath = (
-		Path(__file__).resolve().parents[1]
-		/ "addon"
-		/ "globalPlugins"
-		/ "visAware"
-		/ "contentRecognizers"
-		/ "_vivo_auth.py"
-	)
+	modulePath = Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "visAware" / "vivoAuth.py"
 	spec = importlib.util.spec_from_file_location(
-		"addon.globalPlugins.visAware.contentRecognizers._vivo_auth",
+		"addon.globalPlugins.visAware.vivoAuth",
 		modulePath,
 	)
 	if spec is None or spec.loader is None:
-		raise RuntimeError("Failed to load _vivo_auth.py")
+		raise RuntimeError("Failed to load vivoAuth.py")
 	module = importlib.util.module_from_spec(spec)
 	sys.modules[spec.name] = module
 	spec.loader.exec_module(module)

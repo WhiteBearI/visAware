@@ -73,7 +73,7 @@ def load_kimi_ocr_module():
 		def __init__(self, name=None, *args, **kwargs):
 			self.name = name or kwargs.get("name", "")
 
-	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
+	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
 	settingsModule.ChoiceEngineSetting = Setting
 	settingsModule.EditableChoiceEngineSetting = Setting
 	settingsModule.ButtonEngineSetting = Setting
@@ -89,6 +89,7 @@ def load_kimi_ocr_module():
 	exceptionsModule = types.ModuleType("addon.globalPlugins.visAware.exceptions")
 	exceptionsModule.ApiError = ApiError
 	exceptionsModule.AuthenticationError = type("AuthenticationError", (ApiError,), {})
+	exceptionsModule.CancellationError = type("CancellationError", (Exception,), {})
 	exceptionsModule.StreamIncompleteError = StreamIncompleteError
 	sys.modules[exceptionsModule.__name__] = exceptionsModule
 
@@ -119,12 +120,20 @@ def load_kimi_ocr_module():
 	sys.modules[recogHandlerModule.__name__] = recogHandlerModule
 
 	_load_module(
-		"addon.globalPlugins.visAware.kimiModels",
-		"addon/globalPlugins/visAware/kimiModels.py",
+		"addon.globalPlugins.visAware.openaiCompatible",
+		"addon/globalPlugins/visAware/openaiCompatible.py",
 	)
 	_load_module(
-		"addon.globalPlugins.visAware.kimiAPI",
-		"addon/globalPlugins/visAware/kimiAPI.py",
+		"addon.globalPlugins.visAware.kimiProvider",
+		"addon/globalPlugins/visAware/kimiProvider.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware.kimiConnection",
+		"addon/globalPlugins/visAware/kimiConnection.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware._kimiEngine",
+		"addon/globalPlugins/visAware/_kimiEngine.py",
 	)
 	return _load_module(
 		"addon.globalPlugins.visAware.contentRecognizers.kimiOCR",
@@ -259,15 +268,17 @@ class KimiOCRTestCase(unittest.TestCase):
 
 		self.assertEqual(
 			list(engine.availableModels),
-			[module.KIMI_AUTO_MODEL],
+			["__auto__"],
 		)
 		engine.baseUrl = "https://api.moonshot.ai/v1"
-		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
-		engine._resolvedModels = list(module.getKimiModelChoices(engine.baseUrl))
+		self.assertEqual(engine.model, "__auto__")
+		engine._resolvedModels = list(
+			sys.modules["addon.globalPlugins.visAware.kimiProvider"].getKimiModelChoices(engine.baseUrl)
+		)
 		self.assertEqual(
 			list(engine.availableModels),
 			[
-				module.KIMI_AUTO_MODEL,
+				"__auto__",
 				"kimi-k3",
 				"kimi-k2.7-code",
 				"kimi-k2.7-code-highspeed",
@@ -275,7 +286,7 @@ class KimiOCRTestCase(unittest.TestCase):
 			],
 		)
 		engine.baseUrl = "https://api.moonshot.cn/v1"
-		self.assertEqual(engine.model, module.KIMI_AUTO_MODEL)
+		self.assertEqual(engine.model, "__auto__")
 
 	def test_k3_preserves_max_reasoning_effort(self) -> None:
 		module = load_kimi_ocr_module()

@@ -119,11 +119,7 @@ def _install_stubs() -> list[dict]:
 	networkModule.sendRequest = sendRequest
 	sys.modules[networkModule.__name__] = networkModule
 
-	recogHandlerModule = types.ModuleType("addon.globalPlugins.visAware.recogHandler")
-	recogHandlerModule._redactRequestParamsForLog = lambda value, keyName="": value
-	sys.modules[recogHandlerModule.__name__] = recogHandlerModule
-
-	engineGuiModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
+	engineGuiModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
 
 	class _Setting:
 		def __init__(self, name=None, *args, **kwargs):
@@ -149,7 +145,7 @@ def _install_stubs() -> list[dict]:
 	actionsModule.formatScreenshotPromptContext = lambda screenshot: "Screenshot context."
 	sys.modules[actionsModule.__name__] = actionsModule
 
-	settingsModule = types.ModuleType("addon.globalPlugins.visAware.agent.settings")
+	settingsModule = types.ModuleType("addon.globalPlugins.visAware.agent.engine")
 
 	class BaseAgentEngine:
 		configSectionName = "visAwareAgent"
@@ -170,10 +166,18 @@ def _install_stubs() -> list[dict]:
 	sys.modules[settingsModule.__name__] = settingsModule
 
 	_load_module(
+		"addon.globalPlugins.visAware.requestLogging",
+		"addon/globalPlugins/visAware/requestLogging.py",
+	)
+	_load_module(
 		"addon.globalPlugins.visAware.agent.decision",
 		"addon/globalPlugins/visAware/agent/decision.py",
 	)
 
+	_load_module(
+		"addon.globalPlugins.visAware.openaiResponses",
+		"addon/globalPlugins/visAware/openaiResponses.py",
+	)
 	_load_module(
 		"addon.globalPlugins.visAware.deepseekModels",
 		"addon/globalPlugins/visAware/deepseekModels.py",
@@ -181,6 +185,10 @@ def _install_stubs() -> list[dict]:
 	module = _load_module(
 		"addon.globalPlugins.visAware.agent.deepseek",
 		"addon/globalPlugins/visAware/agent/deepseek.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware.agent.engines.deepseek",
+		"addon/globalPlugins/visAware/agent/engines/deepseek.py",
 	)
 	return requests_seen
 
@@ -382,34 +390,43 @@ class DeepSeekAgentTestCase(unittest.TestCase):
 		with self.assertRaises(module.ApiError):
 			client.nextAction("open settings", _Screenshot(), [])
 
-	def test_redacts_image_url_before_logging(self) -> None:
+	def test_verbose_request_logging_hides_credentials_and_screenshot(self) -> None:
 		_install_stubs()
 		module = sys.modules["addon.globalPlugins.visAware.agent.deepseek"]
-		redacted = module._redactForLog(
-			{
-				"json": {
-					"input": [
-						{
-							"role": "user",
-							"content": [
-								{
-									"type": "input_image",
-									"image_url": "data:image/jpeg;base64,AAAA",
-								},
-							],
-						},
-					],
-				},
-			},
+		sys.modules["config"].conf = {"visAwareGeneral": {"verboseDebugLogging": True}}
+		messages = []
+		module.log.debug = messages.append
+		module.network.sendRequest = lambda **kwargs: SimpleNamespace(
+			json=lambda: {
+				"status": "completed",
+				"output": [
+					{
+						"type": "function_call",
+						"name": "agent_decision",
+						"call_id": "call-1",
+						"arguments": {"status": "finish", "message": "Done"},
+					}
+				],
+			}
 		)
-
-		self.assertTrue(
-			redacted["json"]["input"][0]["content"][0]["image_url"].startswith("<redacted data URL:"),
+		client = module.DeepSeekAgentClient(
+			module.DeepSeekAgentSettings(
+				apiKey="private-key",
+				baseUrl="https://api.deepseek.com",
+				model="deepseek-flash",
+				imageQuality=90,
+				source="test",
+			)
 		)
+		client.nextAction("Task", _Screenshot(imageBase64="private-screenshot"), [])
+		self.assertTrue(messages)
+		self.assertIn("<redacted>", messages[0])
+		self.assertNotIn("private-key", str(messages))
+		self.assertNotIn("private-screenshot", str(messages))
 
 	def test_agent_engine_uses_fixed_vision_model_choice(self) -> None:
 		_install_stubs()
-		module = sys.modules["addon.globalPlugins.visAware.agent.deepseek"]
+		module = sys.modules["addon.globalPlugins.visAware.agent.engines.deepseek"]
 		engine = module.AgentEngine()
 
 		self.assertNotIn("fetchModels", [setting.name for setting in engine.supportedSettings])

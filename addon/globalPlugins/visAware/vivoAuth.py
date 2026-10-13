@@ -14,9 +14,9 @@ import urllib.parse
 
 import config
 from logHandler import log
-from .. import network
-from ..exceptions import AuthenticationError, NetworkError, ApiError
-from ..secure_storage import SecureStorageError, unprotectString
+from . import network
+from .exceptions import AuthenticationError, NetworkError, ApiError
+from .secure_storage import SecureStorageError, unprotectString
 
 __all__ = ["genSignHeaders", "getNvdacnCredentials"]
 

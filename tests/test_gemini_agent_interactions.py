@@ -105,6 +105,16 @@ def _install_module_stubs() -> None:
 
 def load_gemini_module():
 	load_gemini_models_module()
+	sys.modules["addon.globalPlugins.visAware"].__path__ = [
+		str(Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware")
+	]
+	loggingPath = Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware/requestLogging.py"
+	loggingSpec = importlib.util.spec_from_file_location(
+		"addon.globalPlugins.visAware.requestLogging", loggingPath
+	)
+	loggingModule = importlib.util.module_from_spec(loggingSpec)
+	sys.modules[loggingSpec.name] = loggingModule
+	loggingSpec.loader.exec_module(loggingModule)
 	modulePath = (
 		Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "visAware" / "agent" / "gemini.py"
 	)

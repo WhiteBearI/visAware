@@ -127,11 +127,11 @@ def load_paddleocr_module():
 	pilImageModule = sys.modules["PIL.Image"]
 	pilImageModule.Image = type("Image", (), {})
 
-	engineGUIHelperModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
-	engineGUIHelperModule.BooleanEngineSetting = _BooleanEngineSetting
-	engineGUIHelperModule.ChoiceEngineSetting = _EngineSetting
-	engineGUIHelperModule.TextInputEngineSetting = _EngineSetting
-	sys.modules["addon.globalPlugins.visAware.engineGUIHelper"] = engineGUIHelperModule
+	engineSettingsModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
+	engineSettingsModule.BooleanEngineSetting = _BooleanEngineSetting
+	engineSettingsModule.ChoiceEngineSetting = _EngineSetting
+	engineSettingsModule.TextInputEngineSetting = _EngineSetting
+	sys.modules["addon.globalPlugins.visAware.engineSettings"] = engineSettingsModule
 
 	recogHistoryModule = types.ModuleType("addon.globalPlugins.visAware.recogHistory")
 	recogHistoryModule.createEntry = lambda *args, **kwargs: None
@@ -145,6 +145,17 @@ def load_paddleocr_module():
 	sys.modules["addon.globalPlugins.visAware.recogHandler"] = recogHandlerModule
 
 	load_paddleocr_client_module()
+	parserPath = (
+		Path(__file__).resolve().parents[1]
+		/ "addon/globalPlugins/visAware/contentRecognizers/_paddleOCRResults.py"
+	)
+	parserSpec = importlib.util.spec_from_file_location(
+		"addon.globalPlugins.visAware.contentRecognizers._paddleOCRResults",
+		parserPath,
+	)
+	parserModule = importlib.util.module_from_spec(parserSpec)
+	sys.modules[parserSpec.name] = parserModule
+	parserSpec.loader.exec_module(parserModule)
 	modulePath = (
 		Path(__file__).resolve().parents[1]
 		/ "addon"

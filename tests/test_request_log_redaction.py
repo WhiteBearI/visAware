@@ -110,8 +110,9 @@ def _install_module_stubs() -> None:
 	promptsModule.buildImageDescriptionPrompt = lambda prompt, useMarkdown: prompt
 	sys.modules["addon.globalPlugins.visAware.imageDescribers._prompts"] = promptsModule
 
-	engineGUIHelperModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
-	engineGUIHelperModule.NumericEngineSetting = type("NumericEngineSetting", (), {})
+	engineSettingsModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
+	engineSettingsModule.NumericEngineSetting = type("NumericEngineSetting", (), {})
+	engineSettingsModule.EngineSetting = type("EngineSetting", (), {})
 
 	class TextInputEngineSetting:
 		def __init__(self, name: str, displayNameWithAccelerator: str, **kwargs):
@@ -120,25 +121,45 @@ def _install_module_stubs() -> None:
 			for key, value in kwargs.items():
 				setattr(self, key, value)
 
-	engineGUIHelperModule.TextInputEngineSetting = TextInputEngineSetting
-	sys.modules["addon.globalPlugins.visAware.engineGUIHelper"] = engineGUIHelperModule
+	engineSettingsModule.TextInputEngineSetting = TextInputEngineSetting
+	sys.modules["addon.globalPlugins.visAware.engineSettings"] = engineSettingsModule
 
 	abstractEngineModule = types.ModuleType("addon.globalPlugins.visAware.abstractEngine")
 	abstractEngineModule.AbstractEngine = type("AbstractEngine", (), {})
 	abstractEngineModule.AbstractEngineHandler = type("AbstractEngineHandler", (), {})
-	abstractEngineModule.AbstractEngineSettingsPanel = type("AbstractEngineSettingsPanel", (), {})
-	abstractEngineModule.EngineSetting = type("EngineSetting", (), {})
 	sys.modules["addon.globalPlugins.visAware.abstractEngine"] = abstractEngineModule
 
 
 def load_recog_handler_module():
 	_install_module_stubs()
+	loggingPath = Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware/requestLogging.py"
+	loggingSpec = importlib.util.spec_from_file_location(
+		"addon.globalPlugins.visAware.requestLogging", loggingPath
+	)
+	loggingModule = importlib.util.module_from_spec(loggingSpec)
+	sys.modules[loggingSpec.name] = loggingModule
+	loggingSpec.loader.exec_module(loggingModule)
 	modulePath = (
 		Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "visAware" / "recogHandler.py"
 	)
 	spec = importlib.util.spec_from_file_location("addon.globalPlugins.visAware.recogHandler", modulePath)
 	if spec is None or spec.loader is None:
 		raise RuntimeError("Failed to load recogHandler.py")
+	module = importlib.util.module_from_spec(spec)
+	sys.modules[spec.name] = module
+	spec.loader.exec_module(module)
+	return module
+
+
+def load_recognition_settings_module():
+	load_recog_handler_module()
+	uiModule = types.ModuleType("addon.globalPlugins.visAware.engineSettingsUI")
+	uiModule.AbstractEngineSettingsPanel = type("AbstractEngineSettingsPanel", (), {})
+	sys.modules[uiModule.__name__] = uiModule
+	modulePath = Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware/recognitionSettings.py"
+	spec = importlib.util.spec_from_file_location(
+		"addon.globalPlugins.visAware.recognitionSettings", modulePath
+	)
 	module = importlib.util.module_from_spec(spec)
 	sys.modules[spec.name] = module
 	spec.loader.exec_module(module)
@@ -179,7 +200,7 @@ class RequestLogRedactionTestCase(unittest.TestCase):
 				"file": ("image.png", b"123", "image/png"),
 			},
 		}
-		redacted = self.module._redactRequestParamsForLog(requestParams)
+		redacted = self.module.redactForLog(requestParams)
 
 		self.assertEqual(redacted["headers"]["x-goog-api-key"], "<redacted>")
 		self.assertEqual(redacted["headers"]["x-api-key"], "<redacted>")
@@ -293,7 +314,11 @@ class RequestLogRedactionTestCase(unittest.TestCase):
 	def test_automatic_recognition_can_reuse_the_controller_worker(self) -> None:
 		workerThreads = []
 		engine = types.SimpleNamespace(
-			_buildRecognitionRequest=lambda _automatic: self.module.RecognitionRequest(False, False),
+			_buildRecognitionRequest=lambda _automatic,
+			_cancellationChecker=None: self.module.RecognitionRequest(
+				False,
+				False,
+			),
 		)
 		engine._recognitionImageWorker = (
 			lambda _image, _onResult, _cancellationEvent, _request: workerThreads.append(
@@ -314,7 +339,8 @@ class RequestLogRedactionTestCase(unittest.TestCase):
 
 class AutoRecognitionSettingsTestCase(unittest.TestCase):
 	def setUp(self) -> None:
-		self.module = load_recog_handler_module()
+		self.ui = load_recognition_settings_module()
+		self.module = sys.modules["addon.globalPlugins.visAware.recogHandler"]
 
 		class _ConfigSection(dict):
 			def __getitem__(self, key: str, checkValidity: bool = True):
@@ -353,7 +379,7 @@ class AutoRecognitionSettingsTestCase(unittest.TestCase):
 				setting = f"ocr:{name}"
 				self.conf["autoRecognitionEngine"] = setting
 				typesList, choices, typeSelection, engineSelection = (
-					self.module.getAutoRecognitionTypeAndEngineChoices()
+					self.ui.getAutoRecognitionTypeAndEngineChoices()
 				)
 				self.assertEqual(typesList[typeSelection][0], "off")
 				self.assertEqual(choices, [])
@@ -362,14 +388,12 @@ class AutoRecognitionSettingsTestCase(unittest.TestCase):
 
 	def test_current_unsupported_engine_does_not_change_follow_current_setting(self) -> None:
 		self.current.name = "captchaText"
-		typesList, choices, typeSelection, engineSelection = (
-			self.module.getAutoRecognitionTypeAndEngineChoices()
-		)
+		typesList, choices, typeSelection, engineSelection = self.ui.getAutoRecognitionTypeAndEngineChoices()
 		self.assertEqual(typesList[typeSelection][0], "ocr")
 		self.assertEqual(choices[engineSelection][0], "current")
 
 	def test_settings_do_not_instantiate_unsupported_current_or_explicit_engine(self) -> None:
-		panel = object.__new__(self.module.AutomaticRecognitionPanel)
+		panel = object.__new__(self.ui.AutomaticRecognitionPanel)
 		panel._getSelectedAutoRecognitionType = lambda: "ocr"
 		self.current.name = "captchaText"
 		for name in ("current", "captchaText"):

@@ -10,8 +10,8 @@ from collections import OrderedDict
 from typing import List, Any
 
 from ..recogHandler import BaseRecognizer, RecognitionRequest
-from . import _vivo_auth
-from ..engineGUIHelper import ChoiceEngineSetting
+from .. import vivoAuth
+from ..engineSettings import ChoiceEngineSetting
 
 addonHandler.initTranslation()
 
@@ -93,8 +93,8 @@ class CustomContentRecognizer(BaseRecognizer):
 		:returns: A dictionary of parameters for `requests`.
 		:raises AuthenticationError: If NVDACN credentials are not configured.
 		"""
-		user, password = _vivo_auth.getNvdacnCredentials()
-		headers = _vivo_auth.genSignHeaders(user, password, self._method, self._uri, {})
+		user, password = vivoAuth.getNvdacnCredentials()
+		headers = vivoAuth.genSignHeaders(user, password, self._method, self._uri, {})
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 		postData = {

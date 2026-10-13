@@ -28,6 +28,7 @@ from PIL import Image, ImageGrab
 
 from . import recogHistory
 from .cues import CueType
+from .requestLogging import isVerboseDebugLoggingEnabled
 from .exceptions import CancellationError
 from .network import sendRequest
 from .recogHandler import (
@@ -88,13 +89,6 @@ SCREENSHOT_CONTENT_KEY_PREFIX = "screenshotImage:"
 RECOGNITION_KEY_SEPARATOR = "|"
 
 
-def _verboseDebugLogging() -> bool:
-	try:
-		return bool(config.conf["visAwareGeneral"]["verboseDebugLogging"])
-	except Exception:
-		return False
-
-
 def _preferScreenshotForWebImages() -> bool:
 	try:
 		return bool(config.conf["visAwareGeneral"]["preferScreenshotForWebImages"])
@@ -112,7 +106,7 @@ def getNextAutoRecognitionSetting(setting: str) -> str:
 
 
 def _debug(message: str) -> None:
-	if _verboseDebugLogging():
+	if isVerboseDebugLoggingEnabled():
 		log.io(f"Vis Aware automatic recognition: {message}")
 
 
@@ -213,7 +207,7 @@ def _getImageSrcFromMapping(container: Any, keys: tuple[str, ...]) -> str | None
 		src = _normalizeImageSrc(value)
 		if src:
 			return src
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"Ignoring unsupported image URL from {key!r}: {value[:80]!r}")
 	return None
 
@@ -428,16 +422,16 @@ def getObjectLocation(obj: Any) -> tuple[int, int, int, int] | None:
 		_debug("Could not read screenshot candidate object location.")
 		return None
 	if width <= 0 or height <= 0:
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"Screenshot candidate ignored: invalid location {(left, top, width, height)!r}.")
 		return None
 	if width * height > MAX_IMAGE_PIXELS:
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"Screenshot candidate ignored: too many pixels {(left, top, width, height)!r}.")
 		return None
 	location = (left, top, width, height)
 	if not _isLocationWithinDesktop(location):
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"Screenshot candidate ignored: location outside desktop bounds {location!r}.")
 		return None
 	return location
@@ -508,7 +502,7 @@ class AutoRecognitionController:
 			handler = CustomOCRHandler
 			prefix = AUTO_RECOGNITION_OCR_PREFIX
 		else:
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(f"automatic recognition skipped: invalid engine setting {setting!r}.")
 			return None
 		engineName = setting.removeprefix(prefix)
@@ -516,12 +510,12 @@ class AutoRecognitionController:
 			currentEngine = handler.getCurrentEngine()
 			engineName = getattr(currentEngine, "name", "")
 		if not engineName or engineName == "empty":
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(f"automatic recognition skipped: no usable engine for {setting!r}.")
 			return None
 		enabledEngineNames = {name for name, _description in getAutoRecognitionEngineList(handler)}
 		if engineName not in enabledEngineNames:
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(
 					f"automatic recognition skipped: engine {engineName!r} is unavailable for automatic recognition.",
 				)
@@ -729,7 +723,7 @@ class AutoRecognitionController:
 			return
 		currentUrlKeyGetter = self._makeCurrentUrlKeyGetter(currentSrcGetter)
 		if urlKey == self._activeKey and self._hasActiveTask():
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(f"{source} skipped: already recognizing {_urlForLog(src)}")
 			return
 		self._startScreenshotDescription(
@@ -843,10 +837,10 @@ class AutoRecognitionController:
 		currentKeyGetter: Callable[[], str | None],
 	) -> None:
 		if key == self._activeKey and self._hasActiveTask():
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(f"{source} skipped: already recognizing {_urlForLog(src)}")
 			return
-		targetDescription = _urlForLog(src) if _verboseDebugLogging() else ""
+		targetDescription = _urlForLog(src) if isVerboseDebugLoggingEnabled() else ""
 		self._scheduleDescriptionStart(
 			key,
 			source,
@@ -869,7 +863,7 @@ class AutoRecognitionController:
 		token = self._token
 		self._activeKey = key
 		self._activeCurrentKeyGetter = currentKeyGetter
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"{source} triggered: {_urlForLog(src)}")
 		self._startWorker(
 			self._downloadAndDescribe,
@@ -886,10 +880,10 @@ class AutoRecognitionController:
 		fallbackCurrentKeyGetter: Callable[[], str | None] | None = None,
 	) -> None:
 		if key == self._activeKey and self._hasActiveTask():
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(f"{source} skipped: already recognizing location={location!r}")
 			return
-		targetDescription = f"location={location!r}" if _verboseDebugLogging() else ""
+		targetDescription = f"location={location!r}" if isVerboseDebugLoggingEnabled() else ""
 		self._scheduleDescriptionStart(
 			key,
 			source,
@@ -922,7 +916,7 @@ class AutoRecognitionController:
 		token = self._token
 		self._activeKey = key
 		self._activeCurrentKeyGetter = currentKeyGetter
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"{source} triggered: location={location!r}")
 		self._startWorker(
 			self._captureAndDescribe,
@@ -941,7 +935,7 @@ class AutoRecognitionController:
 		serial = self._pendingSerial
 		self._pendingKey = key
 		startedAt = time.perf_counter()
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(
 				f"{source} scheduled: {targetDescription}, delay={DESCRIPTION_DEBOUNCE_MS}ms",
 			)
@@ -964,12 +958,12 @@ class AutoRecognitionController:
 		startedAt: float,
 	) -> None:
 		if serial != self._pendingSerial or key != self._pendingKey:
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(f"{source} delayed start ignored: task is no longer pending.")
 			return
 		self._pendingTimer = None
 		self._pendingKey = None
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"{source} debounce elapsed: starting.")
 		start(startedAt)
 
@@ -1069,7 +1063,7 @@ class AutoRecognitionController:
 		src: str,
 		startedAt: float,
 	) -> None:
-		isDebug = _verboseDebugLogging()
+		isDebug = isVerboseDebugLoggingEnabled()
 		downloadStartedAt = time.perf_counter() if isDebug else 0
 		if isDebug:
 			_debug(f"downloading image: {_urlForLog(src)}")
@@ -1102,7 +1096,7 @@ class AutoRecognitionController:
 			)
 
 			left, top, width, height = location
-			isDebug = _verboseDebugLogging()
+			isDebug = isVerboseDebugLoggingEnabled()
 			captureStartedAt = time.perf_counter() if isDebug else 0
 			imageInfo = None
 			pixels = None
@@ -1177,7 +1171,7 @@ class AutoRecognitionController:
 		if not self._isCurrent(token, key):
 			return
 		self._activeCurrentKeyGetter = currentKeyGetter
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"starting image URL fallback: {_urlForLog(src)}")
 		self._downloadAndDescribe(token, key, src, startedAt)
 
@@ -1196,7 +1190,7 @@ class AutoRecognitionController:
 			if not self._currentKeyMatches(key):
 				_debug("screenshot cache hit ignored: current target changed.")
 				return
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(
 					f"screenshot content cache hit: key={contentKey[-12:]}, "
 					f"totalElapsed={time.perf_counter() - startedAt:.3f}s",
@@ -1218,7 +1212,7 @@ class AutoRecognitionController:
 		if not self._isCurrent(token, key):
 			_debug("automatic recognition start ignored: task is no longer current.")
 			return
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(
 				f"starting {getattr(engine, 'name', 'unknown')} automatic recognition: "
 				f"{image.width}x{image.height}",
@@ -1287,7 +1281,7 @@ class AutoRecognitionController:
 		if width * height > MAX_IMAGE_PIXELS:
 			raise ValueError("Focused image dimensions are too large to load.")
 		image.load()
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(f"downloaded image: bytes={len(data)}, size={image.width}x{image.height}")
 		return image
 
@@ -1340,7 +1334,7 @@ class AutoRecognitionController:
 				recogHistory.addEntry(historyEntry, result=result)
 			if resultCacheKey:
 				self._storeCachedResult(resultCacheKey, resultText)
-			if _verboseDebugLogging():
+			if isVerboseDebugLoggingEnabled():
 				_debug(
 					f"automatic recognition result accepted: chars={len(resultText)}, "
 					f"totalElapsed={time.perf_counter() - startedAt:.3f}s",
@@ -1366,7 +1360,7 @@ class AutoRecognitionController:
 			recogHistory.addEntry(result.historyEntry, text=resultText)
 		if resultCacheKey:
 			self._storeCachedResult(resultCacheKey, resultText)
-		if _verboseDebugLogging():
+		if isVerboseDebugLoggingEnabled():
 			_debug(
 				f"automatic streaming recognition result accepted: chars={len(resultText)}, "
 				f"totalElapsed={time.perf_counter() - startedAt:.3f}s",

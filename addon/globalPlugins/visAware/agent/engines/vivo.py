@@ -10,8 +10,8 @@ from typing import Any
 
 import addonHandler
 
-from ...engineGUIHelper import BooleanEngineSetting
-from ..settings import BaseAgentEngine
+from ...engineSettings import BooleanEngineSetting
+from ..engine import BaseAgentEngine
 from ..vivo import VivoAgentClient, VivoAgentSettings
 
 addonHandler.initTranslation()

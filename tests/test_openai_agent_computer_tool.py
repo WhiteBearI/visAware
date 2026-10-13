@@ -103,6 +103,9 @@ def _install_module_stubs() -> None:
 
 def load_openai_module():
 	_install_module_stubs()
+	sys.modules["addon.globalPlugins.visAware"].__path__ = [
+		str(Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware")
+	]
 	modulePath = (
 		Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "visAware" / "agent" / "openai.py"
 	)
@@ -153,7 +156,9 @@ class OpenAIAgentComputerToolTestCase(unittest.TestCase):
 			),
 		]
 
-		def sendRequest(_method, _url, **kwargs):
+		def sendRequest(method, url, **kwargs):
+			self.assertEqual(method, "POST")
+			self.assertEqual(url, "https://api.openai.com/v1/responses")
 			payloads.append(kwargs["json"])
 			return responses.pop(0)
 

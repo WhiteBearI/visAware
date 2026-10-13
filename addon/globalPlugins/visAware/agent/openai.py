@@ -15,6 +15,7 @@ from logHandler import log
 
 from .. import network
 from ..exceptions import ApiError, AuthenticationError
+from ..openaiResponses import buildResponsesRequest
 from .actions import JPEG_QUALITY, NORMALIZED_SCALE, AgentAction, Screenshot, formatScreenshotPromptContext
 from .decision import AgentDecision
 
@@ -87,14 +88,7 @@ class OpenAIAgentClient:
 			payload["previous_response_id"] = self._previousResponseId
 		startTime = time.perf_counter()
 		response = network.sendRequest(
-			"POST",
-			f"{self.baseUrl}/responses",
-			headers={
-				"Authorization": f"Bearer {self.apiKey}",
-				"Content-Type": "application/json",
-			},
-			json=payload,
-			timeout=60,
+			**buildResponsesRequest(self.apiKey, self.baseUrl, payload, timeout=60)
 		)
 		apiResult = response.json()
 		duration = time.perf_counter() - startTime

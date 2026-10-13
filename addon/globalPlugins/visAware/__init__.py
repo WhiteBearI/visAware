@@ -34,7 +34,8 @@ from PIL import Image, ImageGrab
 from ._autoRecognition import AutoRecognitionController, getNextAutoRecognitionSetting
 from ._taskCues import TaskCueManager
 from .askDialog import AskQuestionFrame
-from .agent.settings import AgentHandler, AgentPanel
+from .agent.engine import AgentHandler
+from .agent.settings import AgentPanel
 from .agent.session import AgentSession
 from .exceptions import CancellationError, AuthenticationError, NetworkError, ApiError
 from . import recogHistory
@@ -46,12 +47,8 @@ from ._screenCapture import (
 from .conversation import ConversationContext, makeConversationContext
 from .markdownRenderer import showMarkdownBrowseableMessage
 from .recogHandler import (
-	AutomaticRecognitionPanel,
 	CustomOCRHandler,
-	CustomOCRPanel,
 	ImageDescriberHandler,
-	ImageDescriberPanel,
-	OCRPanel,
 	StreamFinished,
 	StreamText,
 	getCycleSourceTypes,
@@ -63,6 +60,7 @@ from .recogHandler import (
 	isAutomaticRecognitionEnabled,
 	ENGINE_TYPES,
 )
+from .recognitionSettings import AutomaticRecognitionPanel, CustomOCRPanel, ImageDescriberPanel, OCRPanel
 from .streamingSpeech import StreamingSpeechPresenter
 
 if TYPE_CHECKING:

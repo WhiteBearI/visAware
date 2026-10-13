@@ -12,8 +12,8 @@ from threading import Lock, Thread
 from typing import List, Any
 
 from ..recogHandler import BaseDescriber, RecognitionRequest
-from ..contentRecognizers import _vivo_auth
-from ..engineGUIHelper import NumericEngineSetting, CheckListEngineSetting
+from .. import vivoAuth
+from ..engineSettings import NumericEngineSetting, CheckListEngineSetting
 from PIL import Image
 from io import BytesIO
 
@@ -142,8 +142,8 @@ class CustomContentRecognizer(BaseDescriber):
 
 		def fetchHeaders(generation: int) -> None:
 			try:
-				user, password = _vivo_auth.getNvdacnCredentials()
-				headers = _vivo_auth.genSignHeaders(user, password, self._method, self._uri, {})
+				user, password = vivoAuth.getNvdacnCredentials()
+				headers = vivoAuth.genSignHeaders(user, password, self._method, self._uri, {})
 				with engineClass._authPrefetchLock:
 					if generation != engineClass._authPrefetchGeneration:
 						return
@@ -213,8 +213,8 @@ class CustomContentRecognizer(BaseDescriber):
 		return self._generateAuthHeaders()
 
 	def _generateAuthHeaders(self) -> dict:
-		user, password = _vivo_auth.getNvdacnCredentials()
-		return _vivo_auth.genSignHeaders(user, password, self._method, self._uri, {})
+		user, password = vivoAuth.getNvdacnCredentials()
+		return vivoAuth.genSignHeaders(user, password, self._method, self._uri, {})
 
 	def _serializeImageForUpload(self, image: Image.Image) -> bytes:
 		"""

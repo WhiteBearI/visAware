@@ -18,7 +18,7 @@ from .._ollamaClient import (
 )
 from .._ollamaEngine import OllamaEngineMixin
 from ..conversation import QuestionStreamFinished, QuestionStreamText
-from ..engineGUIHelper import (
+from ..engineSettings import (
 	BooleanEngineSetting,
 	ButtonEngineSetting,
 	ChoiceEngineSetting,

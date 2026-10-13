@@ -82,6 +82,7 @@ def _install_stubs() -> list[dict]:
 	exceptionsModule = types.ModuleType("addon.globalPlugins.visAware.exceptions")
 	exceptionsModule.ApiError = type("ApiError", (Exception,), {})
 	exceptionsModule.AuthenticationError = type("AuthenticationError", (Exception,), {})
+	exceptionsModule.StreamIncompleteError = type("StreamIncompleteError", (exceptionsModule.ApiError,), {})
 	sys.modules[exceptionsModule.__name__] = exceptionsModule
 	ApiError = exceptionsModule.ApiError
 
@@ -159,10 +160,9 @@ def _install_stubs() -> list[dict]:
 
 	recogHandlerModule.BaseDescriber = BaseDescriber
 	recogHandlerModule.RecognitionRequest = RecognitionRequest
-	recogHandlerModule._redactRequestParamsForLog = lambda value, keyName="": value
 	sys.modules[recogHandlerModule.__name__] = recogHandlerModule
 
-	engineGuiModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
+	engineGuiModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
 	engineGuiModule.ChoiceEngineSetting = lambda *args, **kwargs: types.SimpleNamespace(
 		name=kwargs.get("name", args[0] if args else ""),
 	)
@@ -174,6 +174,10 @@ def _install_stubs() -> list[dict]:
 	_load_module(
 		"addon.globalPlugins.visAware.imageDescribers._prompts",
 		"addon/globalPlugins/visAware/imageDescribers/_prompts.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware.openaiCompatible",
+		"addon/globalPlugins/visAware/openaiCompatible.py",
 	)
 	_load_module(
 		"addon.globalPlugins.visAware.deepseekModels",
@@ -342,36 +346,6 @@ class DeepSeekImageDescriberTestCase(unittest.TestCase):
 		self.assertEqual(
 			requests_seen[0]["json"]["messages"][-1]["content"],
 			"What does the chair look like?",
-		)
-
-	def test_redacts_image_url_before_logging(self) -> None:
-		_install_stubs()
-		module = sys.modules["addon.globalPlugins.visAware.imageDescribers.deepseek"]
-		redacted = module._redactForLog(
-			{
-				"json": {
-					"messages": [
-						{
-							"role": "user",
-							"content": [
-								{
-									"type": "image_url",
-									"image_url": {
-										"url": "data:image/jpeg;base64,AAAA",
-										"detail": "high",
-									},
-								},
-							],
-						},
-					],
-				},
-			},
-		)
-
-		self.assertTrue(
-			redacted["json"]["messages"][0]["content"][0]["image_url"]["url"].startswith(
-				"<redacted data URL:",
-			),
 		)
 
 	def test_available_models_are_fixed(self) -> None:

@@ -12,22 +12,18 @@ import time
 from typing import Any
 
 import addonHandler
-import config
 from logHandler import log
 
 from ..deepseekModels import (
 	DEFAULT_DEEPSEEK_BASE_URL,
 	DEFAULT_DEEPSEEK_VISION_MODEL,
-	buildDeepSeekResponsesUrl,
-	getDeepSeekVisionModelChoices,
-	redactDeepSeekImageUrlsForLog,
 )
-from ..engineGUIHelper import ChoiceEngineSetting, TextInputEngineSetting
 from .actions import Screenshot, formatScreenshotPromptContext
 from .decision import AGENT_ACTION_SCHEMA, AgentDecision, parseAgentDecision
-from .settings import BaseAgentEngine
 from .. import network
+from ..requestLogging import isVerboseDebugLoggingEnabled, redactForLog
 from ..exceptions import ApiError, AuthenticationError
+from ..openaiResponses import buildResponsesRequest
 
 addonHandler.initTranslation()
 
@@ -35,85 +31,6 @@ AGENT_DECISION_TOOL_NAME = "agent_decision"
 MAX_HISTORY_ITEMS = 8
 MAX_REQUEST_BYTES = 1_900_000
 REQUEST_TIMEOUT = 60
-
-
-class AgentEngine(BaseAgentEngine):
-	"""DeepSeek-backed computer-use agent engine."""
-
-	name = "deepseek"
-	# Translators: The description of the DeepSeek Agent engine.
-	description = _("DeepSeek")
-
-	_apiKey: str = ""
-	_baseUrl: str = DEFAULT_DEEPSEEK_BASE_URL
-	_model: str = DEFAULT_DEEPSEEK_VISION_MODEL
-
-	@property
-	def supportedSettings(self) -> list[Any]:
-		return [
-			TextInputEngineSetting(
-				name="apiKey",
-				# Translators: The label for the DeepSeek API key used by the Agent.
-				displayNameWithAccelerator=_("API &key"),
-			),
-			TextInputEngineSetting(
-				name="baseUrl",
-				# Translators: The label for the DeepSeek base URL used by the Agent.
-				displayNameWithAccelerator=_("Base &URL"),
-				refreshSettingsOnChange=True,
-			),
-			ChoiceEngineSetting(
-				name="model",
-				# Translators: The label for the DeepSeek model used by the Agent.
-				displayNameWithAccelerator=_("&Model"),
-				optionsPropertyName="availableModels",
-			),
-			self._imageQualitySetting(),
-		]
-
-	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value.strip()
-
-	@property
-	def baseUrl(self) -> str:
-		return self._baseUrl
-
-	@baseUrl.setter
-	def baseUrl(self, value: str) -> None:
-		self._baseUrl = value.strip().rstrip("/") or DEFAULT_DEEPSEEK_BASE_URL
-
-	@property
-	def model(self) -> str:
-		return self._model
-
-	@model.setter
-	def model(self, value: str) -> None:
-		value = value.strip()
-		self._model = value if value in self.availableModels else DEFAULT_DEEPSEEK_VISION_MODEL
-
-	@property
-	def availableModels(self) -> dict:
-		return self.generateStringSettings(getDeepSeekVisionModelChoices())
-
-	@classmethod
-	def check(cls) -> bool:
-		return True
-
-	def createClient(self) -> "DeepSeekAgentClient":
-		return DeepSeekAgentClient(
-			DeepSeekAgentSettings(
-				apiKey=self.apiKey,
-				baseUrl=self.baseUrl,
-				model=self.model,
-				imageQuality=self.imageQuality,
-				source="Agent DeepSeek engine settings",
-			),
-		)
 
 
 class DeepSeekAgentClient:
@@ -145,18 +62,9 @@ class DeepSeekAgentClient:
 			"tools": [_buildAgentDecisionTool()],
 			"tool_choice": {"type": "function", "name": AGENT_DECISION_TOOL_NAME},
 		}
-		requestParams = {
-			"method": "POST",
-			"url": buildDeepSeekResponsesUrl(self.baseUrl),
-			"headers": {
-				"Content-Type": "application/json",
-				"Authorization": f"Bearer {self.apiKey}",
-			},
-			"json": payload,
-			"timeout": REQUEST_TIMEOUT,
-		}
-		if _verboseDebugLogging():
-			log.debug(f"DeepSeek agent request params: {_redactForLog(requestParams)}")
+		requestParams = buildResponsesRequest(self.apiKey, self.baseUrl, payload, timeout=REQUEST_TIMEOUT)
+		if isVerboseDebugLoggingEnabled():
+			log.debug(f"DeepSeek agent request params: {redactForLog(requestParams)}")
 		startTime = time.perf_counter()
 		response = network.sendRequest(**requestParams)
 		duration = time.perf_counter() - startTime
@@ -164,8 +72,8 @@ class DeepSeekAgentClient:
 		log.info(
 			f"DeepSeek agent response completed: duration={duration:.2f}s, {_formatUsage(apiResult)}",
 		)
-		if _verboseDebugLogging():
-			log.debug(f"DeepSeek agent response: {_redactForLog(apiResult)}")
+		if isVerboseDebugLoggingEnabled():
+			log.debug(f"DeepSeek agent response: {redactForLog(apiResult)}")
 		return self._parseDecision(apiResult)
 
 	def _buildInput(self, goal: str, screenshot: Screenshot, history: list[str]) -> None:
@@ -378,20 +286,6 @@ def _formatUsage(apiResult: dict[str, Any]) -> str:
 		f"tokens=input:{usage.get('prompt_tokens', usage.get('input_tokens'))}, "
 		f"output:{usage.get('completion_tokens', usage.get('output_tokens'))}"
 	)
-
-
-def _verboseDebugLogging() -> bool:
-	try:
-		return bool(config.conf["visAwareGeneral"]["verboseDebugLogging"])
-	except Exception:
-		return False
-
-
-def _redactForLog(value: Any) -> Any:
-	value = redactDeepSeekImageUrlsForLog(value)
-	from ..recogHandler import _redactRequestParamsForLog
-
-	return _redactRequestParamsForLog(value)
 
 
 class DeepSeekAgentSettings:

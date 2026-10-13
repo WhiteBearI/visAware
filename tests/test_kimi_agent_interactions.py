@@ -79,6 +79,7 @@ def load_kimi_agent_module():
 	exceptionsModule = types.ModuleType("addon.globalPlugins.visAware.exceptions")
 	exceptionsModule.ApiError = type("ApiError", (Exception,), {})
 	exceptionsModule.AuthenticationError = type("AuthenticationError", (Exception,), {})
+	exceptionsModule.CancellationError = type("CancellationError", (Exception,), {})
 	exceptionsModule.StreamIncompleteError = type("StreamIncompleteError", (exceptionsModule.ApiError,), {})
 	sys.modules[exceptionsModule.__name__] = exceptionsModule
 
@@ -103,12 +104,20 @@ def load_kimi_agent_module():
 	sys.modules[decisionModule.__name__] = decisionModule
 
 	_load_module(
-		"addon.globalPlugins.visAware.kimiModels",
-		"addon/globalPlugins/visAware/kimiModels.py",
+		"addon.globalPlugins.visAware.requestLogging",
+		"addon/globalPlugins/visAware/requestLogging.py",
 	)
 	_load_module(
-		"addon.globalPlugins.visAware.kimiAPI",
-		"addon/globalPlugins/visAware/kimiAPI.py",
+		"addon.globalPlugins.visAware.openaiCompatible",
+		"addon/globalPlugins/visAware/openaiCompatible.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware.kimiProvider",
+		"addon/globalPlugins/visAware/kimiProvider.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware.kimiConnection",
+		"addon/globalPlugins/visAware/kimiConnection.py",
 	)
 	return _load_module(
 		"addon.globalPlugins.visAware.agent.kimi",
@@ -166,7 +175,7 @@ def _streamToolResponse(callId: str) -> list[bytes]:
 class KimiAgentInteractionsTestCase(unittest.TestCase):
 	def test_kimi_url_builders_accept_base_and_full_endpoint_urls(self) -> None:
 		load_kimi_agent_module()
-		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiProvider"]
 
 		for baseUrl, expectedUrl in (
 			("https://api.kimi.com/coding/v1", "https://api.kimi.com/coding/v1/chat/completions"),
@@ -178,9 +187,16 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 			),
 		):
 			with self.subTest(baseUrl=baseUrl):
-				self.assertEqual(modelsModule.buildKimiChatCompletionsUrl(baseUrl), expectedUrl)
+				self.assertEqual(
+					sys.modules["addon.globalPlugins.visAware.openaiCompatible"].buildChatCompletionsUrl(
+						baseUrl
+					),
+					expectedUrl,
+				)
 		self.assertEqual(
-			modelsModule.buildKimiModelsUrl("https://api.kimi.com/coding/v1/chat/completions"),
+			sys.modules["addon.globalPlugins.visAware.openaiCompatible"].buildModelsUrl(
+				"https://api.kimi.com/coding/v1/chat/completions"
+			),
 			"https://api.kimi.com/coding/v1/models",
 		)
 		self.assertEqual(
@@ -227,7 +243,6 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_connection_discovery_checks_cancellation_after_request(self) -> None:
 		load_kimi_agent_module()
-		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
 		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
 		cancellationError = type("CancellationError", (Exception,), {})
 		checks = 0
@@ -242,7 +257,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 			{"data": [{"id": "kimi-for-coding"}]},
 		)
 		with self.assertRaises(cancellationError):
-			modelsModule.resolveKimiConnection(
+			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
 				"secret",
 				"kimiCodeCn",
 				cancellationChecker=checker,
@@ -264,7 +279,6 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_connection_resolution_preserves_legacy_custom_url_and_models(self) -> None:
 		load_kimi_agent_module()
-		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
 		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
 		requests = []
 
@@ -274,11 +288,15 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 		networkModule.sendRequest = sendRequest
 		self.assertEqual(
-			modelsModule.resolveKimiConnection("secret", "auto", "https://proxy.example/v1"),
+			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
+				"secret", "auto", "https://proxy.example/v1"
+			),
 			("https://proxy.example/v1", ["text-only", "kimi-for-coding"]),
 		)
 		self.assertEqual(
-			modelsModule.resolveKimiConnection("secret", "kimiCodeCn"),
+			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
+				"secret", "kimiCodeCn"
+			),
 			("https://api.kimi.com/coding/v1", ["kimi-for-coding"]),
 		)
 		self.assertEqual(
@@ -291,13 +309,12 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_manual_custom_model_does_not_require_model_discovery(self) -> None:
 		load_kimi_agent_module()
-		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
 		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
 		networkModule.sendRequest = lambda *args, **kwargs: self.fail(
 			"manual custom models should not probe /models"
 		)
 		self.assertEqual(
-			modelsModule.resolveKimiConnection(
+			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
 				"secret",
 				"custom",
 				"https://proxy.example/v1",
@@ -308,17 +325,19 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_custom_auto_model_requires_model_discovery(self) -> None:
 		load_kimi_agent_module()
-		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiModels"]
+		modelsModule = sys.modules["addon.globalPlugins.visAware.kimiProvider"]
 		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
 
 		def sendRequest(*args, **kwargs):
-			error = modelsModule.ApiError("服务不可用")
+			error = sys.modules["addon.globalPlugins.visAware.exceptions"].ApiError("服务不可用")
 			error.errorCode = 404
 			raise error
 
 		networkModule.sendRequest = sendRequest
-		with self.assertRaisesRegex(modelsModule.ApiError, "Enter a model name manually"):
-			modelsModule.resolveKimiConnection(
+		with self.assertRaisesRegex(
+			sys.modules["addon.globalPlugins.visAware.exceptions"].ApiError, "Enter a model name manually"
+		):
+			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
 				"secret",
 				"custom",
 				"https://proxy.example/v1",
@@ -428,7 +447,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_stream_rejects_duplicate_done_marker(self) -> None:
 		module = load_kimi_agent_module()
-		state = module.KimiStreamState()
+		state = module.ChatCompletionStreamState()
 		state.consume(b'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}')
 		state.consume(b"data: [DONE]")
 		state.consume(b"data: [DONE]")
@@ -438,7 +457,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_stream_rejects_tool_call_without_complete_arguments(self) -> None:
 		module = load_kimi_agent_module()
-		state = module.KimiStreamState()
+		state = module.ChatCompletionStreamState()
 		state.consume(
 			b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1",'
 			b'"type":"function","function":{"name":"agent_decision"}}]},'
@@ -452,7 +471,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 	def test_stream_rejects_conflicting_tool_call_identity(self) -> None:
 		module = load_kimi_agent_module()
-		state = module.KimiStreamState()
+		state = module.ChatCompletionStreamState()
 		state.consume(
 			b'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1",'
 			b'"type":"function","function":{"name":"agent_decision","arguments":"{}"}}]},'
@@ -488,6 +507,19 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 			roles[1:],
 			["user", "assistant", "tool", "user", "assistant", "tool", "user", "assistant", "tool", "user"],
 		)
+
+	def test_openai_compatible_client_owns_endpoint_and_auth_headers(self) -> None:
+		load_kimi_agent_module()
+		protocol = sys.modules["addon.globalPlugins.visAware.openaiCompatible"]
+		client = protocol.OpenAICompatibleClient(
+			protocol.OpenAICompatibleSettings("secret", "https://example.test/v1"),
+		)
+		params = client.requestParams({"model": "model"}, timeout=12, stream=True)
+
+		self.assertEqual(params["url"], "https://example.test/v1/chat/completions")
+		self.assertEqual(params["headers"]["Authorization"], "Bearer secret")
+		self.assertTrue(params["json"]["stream"])
+		self.assertEqual(params["json"]["stream_options"], {"include_usage": True})
 
 
 if __name__ == "__main__":

@@ -15,12 +15,11 @@ from .. import network
 from ..deepseekModels import (
 	DEFAULT_DEEPSEEK_BASE_URL,
 	DEFAULT_DEEPSEEK_VISION_MODEL,
-	buildDeepSeekChatCompletionsUrl,
 	getDeepSeekVisionModelChoices,
-	redactDeepSeekImageUrlsForLog,
 )
-from ..engineGUIHelper import ChoiceEngineSetting, TextInputEngineSetting
+from ..engineSettings import ChoiceEngineSetting, TextInputEngineSetting
 from ..exceptions import ApiError, AuthenticationError
+from ..openaiCompatible import OpenAICompatibleClient, OpenAICompatibleSettings
 from ..recogHandler import BaseDescriber, RecognitionRequest
 from ._prompts import DEFAULT_IMAGE_DESCRIPTION_PROMPT
 
@@ -127,12 +126,6 @@ class CustomContentRecognizer(BaseDescriber):
 	def check(cls) -> bool:
 		return True
 
-	def _buildHeaders(self) -> dict[str, str]:
-		return {
-			"Content-Type": "application/json",
-			"Authorization": f"Bearer {self.apiKey}",
-		}
-
 	def _buildRequestParams(self, imageContent: bytes, request: RecognitionRequest) -> dict:
 		if not self.apiKey:
 			raise AuthenticationError(
@@ -147,13 +140,13 @@ class CustomContentRecognizer(BaseDescriber):
 			"thinking": {"type": "disabled"},
 			"max_tokens": MAX_COMPLETION_TOKENS,
 		}
-		return {
-			"method": "POST",
-			"url": buildDeepSeekChatCompletionsUrl(self.baseUrl),
-			"headers": self._buildHeaders(),
-			"json": payload,
-			"timeout": REQUEST_TIMEOUT,
-		}
+		return OpenAICompatibleClient(
+			OpenAICompatibleSettings(
+				apiKey=self.apiKey,
+				baseUrl=self.baseUrl,
+				chatCompletionsPath="/chat/completions",
+			)
+		).requestParams(payload, timeout=REQUEST_TIMEOUT)
 
 	def _buildMessages(
 		self,
@@ -203,13 +196,13 @@ class CustomContentRecognizer(BaseDescriber):
 			"thinking": {"type": "disabled"},
 			"max_tokens": MAX_COMPLETION_TOKENS,
 		}
-		return {
-			"method": "POST",
-			"url": buildDeepSeekChatCompletionsUrl(self.baseUrl),
-			"headers": self._buildHeaders(),
-			"json": payload,
-			"timeout": REQUEST_TIMEOUT,
-		}
+		return OpenAICompatibleClient(
+			OpenAICompatibleSettings(
+				apiKey=self.apiKey,
+				baseUrl=self.baseUrl,
+				chatCompletionsPath="/chat/completions",
+			)
+		).requestParams(payload, timeout=REQUEST_TIMEOUT)
 
 	def askQuestion(
 		self,
@@ -296,10 +289,3 @@ def _extractResponseText(apiResult: dict[str, Any]) -> str:
 		if isinstance(part, dict) and part.get("type") in {"text", "output_text"}
 	).strip()
 	return text
-
-
-def _redactForLog(value: Any) -> Any:
-	value = redactDeepSeekImageUrlsForLog(value)
-	from ..recogHandler import _redactRequestParamsForLog
-
-	return _redactRequestParamsForLog(value)

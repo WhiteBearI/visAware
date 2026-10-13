@@ -13,7 +13,7 @@ from typing import Any
 import wx
 
 from .. import recogHistory
-from ..engineGUIHelper import ButtonEngineSetting
+from ..engineSettings import ButtonEngineSetting
 from ..exceptions import ApiError
 from ..recogHandler import AUTO_RECOGNITION_REQUEST_TIMEOUT, BaseRecognizer, RecognitionRequest
 from ._baimiaoGui import BaimiaoLoginDialog

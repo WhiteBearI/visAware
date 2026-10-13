@@ -11,8 +11,9 @@ import addonHandler
 from logHandler import log
 from PIL import Image
 
-from ..engineGUIHelper import ChoiceEngineSetting, TextInputEngineSetting
+from ..engineSettings import ChoiceEngineSetting, TextInputEngineSetting
 from ..exceptions import ApiError, AuthenticationError
+from ..geminiGenerateContent import buildGenerateContentRequest
 from ..geminiModels import DEFAULT_GEMINI_MODEL, getGeminiLowLatencyThinkingConfig, getGeminiModelChoices
 from ..recogHandler import BaseRecognizer, RecognitionRequest
 
@@ -183,11 +184,6 @@ class CustomContentRecognizer(BaseRecognizer):
 			)
 
 		imageBase64String = imageContent.decode("utf-8")
-		url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
-		headers = {
-			"Content-Type": "application/json",
-			"x-goog-api-key": self.apiKey,
-		}
 		payload = {
 			"contents": [
 				{
@@ -210,12 +206,7 @@ class CustomContentRecognizer(BaseRecognizer):
 		thinkingConfig = getGeminiLowLatencyThinkingConfig(self.model)
 		if thinkingConfig:
 			payload["generationConfig"]["thinkingConfig"] = thinkingConfig
-		return {
-			"method": "POST",
-			"url": url,
-			"headers": headers,
-			"json": payload,
-		}
+		return buildGenerateContentRequest(self.apiKey, self.model, payload)
 
 	def processApiResult(self, result: bytes) -> str | bool:
 		"""

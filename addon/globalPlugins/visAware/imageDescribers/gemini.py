@@ -10,11 +10,11 @@ from typing import List, Any
 
 from .. import network
 from ..conversation import QuestionStreamFinished, QuestionStreamText
-from ..engineGUIHelper import BooleanEngineSetting, ChoiceEngineSetting, TextInputEngineSetting
+from ..engineSettings import BooleanEngineSetting, ChoiceEngineSetting, TextInputEngineSetting
 from ..exceptions import ApiError, AuthenticationError, StreamIncompleteError
-from ._googleGenerativeLanguage import (
+from ..geminiGenerateContent import (
 	buildConversationContents,
-	buildGenerateContentUrl,
+	buildGenerateContentRequest,
 	extractTextFromCandidate,
 	extractTextFromResponse,
 	getApiErrorMessage,
@@ -192,12 +192,6 @@ class CustomContentRecognizer(BaseDescriber):
 				_("API key is missing. Please configure it in the Gemini engine settings."),
 			)
 
-		url = buildGenerateContentUrl(self.model, request.streamResult)
-		headers = {
-			"Content-Type": "application/json",
-			"x-goog-api-key": self.apiKey,
-		}
-
 		imageBase64String = imageContent.decode("utf-8")
 
 		payload = {
@@ -214,12 +208,7 @@ class CustomContentRecognizer(BaseDescriber):
 			},
 		}
 
-		return {
-			"method": "POST",
-			"url": url,
-			"headers": headers,
-			"json": payload,
-		}
+		return buildGenerateContentRequest(self.apiKey, self.model, payload, stream=request.streamResult)
 
 	def processStreamChunk(self, chunk: bytes, request: RecognitionRequest) -> str | None:
 		"""
@@ -260,10 +249,6 @@ class CustomContentRecognizer(BaseDescriber):
 		image = self._getConversationImage(context)
 		imageContent = self.prepareImageContentFromImage(image)
 		imageBase64String = imageContent.decode("utf-8")
-		headers = {
-			"Content-Type": "application/json",
-			"x-goog-api-key": self.apiKey,
-		}
 		payload = {
 			"contents": buildConversationContents(
 				{"inline_data": {"mime_type": "image/jpeg", "data": imageBase64String}},
@@ -276,12 +261,7 @@ class CustomContentRecognizer(BaseDescriber):
 				"mediaResolution": self.mediaResolution,
 			},
 		}
-		return {
-			"method": "POST",
-			"url": buildGenerateContentUrl(self.model, stream=stream),
-			"headers": headers,
-			"json": payload,
-		}
+		return buildGenerateContentRequest(self.apiKey, self.model, payload, stream=stream)
 
 	def askQuestion(
 		self,

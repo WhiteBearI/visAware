@@ -5,7 +5,6 @@
 """An image description engine that uses the VIVO BlueLLM Vision model."""
 
 import addonHandler
-import uuid
 import json
 from collections import OrderedDict
 from collections.abc import Callable, Iterator
@@ -15,9 +14,9 @@ from logHandler import log
 from .. import network
 from ..conversation import QuestionStreamEvent
 from ..recogHandler import BaseDescriber, RecognitionRequest
-from ..exceptions import ApiError, StreamReplacementError
-from ..contentRecognizers import _vivo_auth
-from ..engineGUIHelper import (
+from ..exceptions import ApiError
+from .. import vivoAuth, vivoCompletions
+from ..engineSettings import (
 	BooleanEngineSetting,
 	ChoiceEngineSetting,
 	TextInputEngineSetting,
@@ -27,7 +26,6 @@ from ._prompts import DEFAULT_IMAGE_DESCRIPTION_PROMPT
 
 addonHandler.initTranslation()
 
-VIVO_BLUE_LLM_MODEL = "BlueLM-Vision-Aid"
 VIVO_BLUE_LLM_MAX_TOKENS = 1024
 
 
@@ -38,12 +36,6 @@ class CustomContentRecognizer(BaseDescriber):
 	supportsAutomaticRecognition = True
 	# Translators: The description of the VIVO BlueLLM engine.
 	description = _("VIVO BlueLLM Vision (NVDACN)")
-
-	# --- API Configuration ---
-	_domain = "api-ai.vivo.com.cn"
-	_standardUri = "/vivogpt/completions"
-	_streamingUri = "/vivogpt/completions/stream"
-	_method = "POST"
 
 	# --- Engine State ---
 	supportsStreaming = True
@@ -163,20 +155,6 @@ class CustomContentRecognizer(BaseDescriber):
 		"""
 		return True
 
-	def _getRequestUri(self, request: RecognitionRequest) -> str:
-		"""Returns the endpoint URI for the current recognition request."""
-		if request.streamResult:
-			return self._streamingUri
-		return self._standardUri
-
-	def _getNvdacnCredentials(self) -> tuple[str, str]:
-		"""
-		Returns configured NVDACN credentials.
-
-		:raises AuthenticationError: If NVDACN credentials are not configured.
-		"""
-		return _vivo_auth.getNvdacnCredentials()
-
 	def _buildExtraParams(self) -> dict[str, float | bool | int]:
 		return {
 			"temperature": self.temperature / 100.0,
@@ -196,34 +174,14 @@ class CustomContentRecognizer(BaseDescriber):
 		:param request: Request-local recognition options.
 		:returns: A dictionary of parameters for `requests`.
 		"""
-		user, password = self._getNvdacnCredentials()
-		payload = {
-			"model": VIVO_BLUE_LLM_MODEL,
-			"sessionId": str(uuid.uuid4()),
-			"messages": messages,
-			"extra": self._buildExtraParams(),
-			"provider": "vivo",
-		}
-
-		uri = self._getRequestUri(request)
-		requestId = str(uuid.uuid4())
-		queryParams = {"requestId": requestId}
-		headers = _vivo_auth.genSignHeaders(user, password, self._method, uri, queryParams)
-		headers["Content-Type"] = "application/json"
-
-		log.debug(f"VIVO BlueLLM Request URL: https://{self._domain}{uri}?requestId={requestId}")
-		log.debug(
-			f"VIVO BlueLLM Request Payload (excluding image data): "
-			f"model={payload['model']}, sessionId={payload['sessionId']}, "
-			f"extra={payload['extra']}, messages={len(messages)}",
+		user, password = vivoAuth.getNvdacnCredentials()
+		return vivoCompletions.buildCompletionsRequest(
+			user,
+			password,
+			messages,
+			self._buildExtraParams(),
+			stream=request.streamResult,
 		)
-
-		return {
-			"method": self._method,
-			"url": f"https://{self._domain}{uri}?requestId={requestId}",
-			"headers": headers,
-			"json": payload,
-		}
 
 	def _buildRequestParams(self, imageContent: bytes, request: RecognitionRequest) -> dict:
 		"""
@@ -251,52 +209,7 @@ class CustomContentRecognizer(BaseDescriber):
 		)
 
 	def processStreamChunk(self, chunk: bytes, request: RecognitionRequest) -> str | None:
-		"""
-		Extracts text from one VIVO BlueLLM streaming response line.
-
-		:param chunk: One raw line from the streaming HTTP response.
-		:returns: New model text, or None when the line does not contain text.
-		:raises ApiError: If the stream reports a service error.
-		"""
-		decodedLine = chunk.decode("utf-8", "ignore").strip()
-		if not decodedLine.startswith("data:"):
-			return None
-		payload = decodedLine[len("data:") :].strip()
-		if not payload:
-			return None
-		if payload == "[DONE]":
-			return None
-		try:
-			data = json.loads(payload)
-		except json.JSONDecodeError:
-			log.debugWarning(f"VIVO BlueLLM ignored malformed streaming chunk: {decodedLine}")
-			return None
-		if data.get("code") not in (None, 0):
-			# Translators: A fallback error message when VIVO does not provide an error description.
-			errorMessage = data.get("msg", _("Unknown Vivo API error"))
-			errorCode = data.get("code")
-			log.warning(
-				f"VIVO BlueLLM streaming chunk reported API error. code={errorCode}, message={errorMessage}",
-			)
-			# Translators: A VIVO API error message. {message} is the service message and {code} is the error code.
-			raise ApiError(
-				_("Vivo API error: {message} (Code: {code})").format(
-					message=errorMessage,
-					code=errorCode,
-				),
-				errorCode,
-			)
-		if data.get("type") == "thinking":
-			return None
-		message = data.get("message", "")
-		if message and data.get("type") not in (None, "", "text"):
-			return None
-		if not message:
-			reply = data.get("reply")
-			if reply:
-				raise StreamReplacementError(str(reply), replacementText=str(reply))
-			return None
-		return str(message)
+		return vivoCompletions.processStreamChunk(chunk)
 
 	def askQuestion(
 		self,
@@ -385,16 +298,10 @@ class CustomContentRecognizer(BaseDescriber):
 			# Translators: An error message for an invalid server response.
 			raise ApiError(_("Invalid response from server.")) from e
 
-		if responseJson.get("code") != 0:
-			# Translators: A fallback error message when VIVO does not provide an error description.
-			errorMessage = responseJson.get("msg", _("Unknown Vivo API error"))
-			errorCode = responseJson.get("code")
-			log.error(f"VIVO API returned an error: {errorMessage} (Code: {errorCode})")
-			# Translators: A VIVO API error message. {message} is the service message and {code} is the error code.
-			return _("Vivo API error: {message} (Code: {code})").format(
-				message=errorMessage,
-				code=errorCode,
-			)
+		errorMessage = vivoCompletions.getApiErrorMessage(responseJson)
+		if errorMessage:
+			log.error(f"VIVO API returned an error: {errorMessage}")
+			return errorMessage
 
 		responseData = responseJson.get("data")
 		if not isinstance(responseData, dict):
@@ -413,33 +320,4 @@ class CustomContentRecognizer(BaseDescriber):
 		return False  # Indicates success
 
 	def extractText(self, apiResult: dict) -> str:
-		"""
-		Extracts the plain text result from the parsed API response.
-
-		:param apiResult: The parsed JSON dictionary from the API.
-		:returns: The recognized text as a single string.
-		"""
-		streamedText = apiResult.get("streamed_text")
-		if streamedText:
-			return str(streamedText)
-
-		contentString = apiResult.get("data", {}).get("content", "")
-		if not contentString:
-			return ""
-
-		try:
-			contentList = json.loads(contentString)
-			if isinstance(contentList, list):
-				if not contentList:
-					return ""
-				firstItem = contentList[0]
-				if isinstance(firstItem, dict):
-					return str(firstItem.get("text") or "")
-				return str(firstItem)
-			if isinstance(contentList, str):
-				return contentList
-		except json.JSONDecodeError:
-			log.warning(f"Could not parse 'data.content' as JSON: {contentString}")
-			return contentString
-
-		return contentString
+		return vivoCompletions.extractText(apiResult)

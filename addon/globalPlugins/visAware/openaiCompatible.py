@@ -2,7 +2,7 @@
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
-"""Small, shared helpers for Kimi's OpenAI-compatible Chat API."""
+"""Shared client and response helpers for OpenAI-compatible Chat APIs."""
 
 from __future__ import annotations
 
@@ -13,22 +13,137 @@ from typing import Any
 
 import addonHandler
 
+from . import network
 from .exceptions import ApiError, StreamIncompleteError
 
 addonHandler.initTranslation()
 
+
+def buildChatCompletionsUrl(baseUrl: str, path: str = "/v1/chat/completions") -> str:
+	"""Builds a Chat Completions endpoint from a provider base URL."""
+	baseUrl = baseUrl.rstrip("/")
+	if baseUrl.endswith("/chat/completions"):
+		return baseUrl
+	path = path if path.startswith("/") else f"/{path}"
+	if baseUrl.endswith(path):
+		return baseUrl
+	if path == "/v1/chat/completions" and baseUrl.endswith("/v1"):
+		return f"{baseUrl}/chat/completions"
+	return f"{baseUrl}{path}"
+
+
+def buildModelsUrl(baseUrl: str) -> str:
+	"""Builds a model-list endpoint from a provider base URL."""
+	baseUrl = baseUrl.rstrip("/")
+	if baseUrl.endswith("/models"):
+		return baseUrl
+	if baseUrl.endswith("/chat/completions"):
+		baseUrl = baseUrl[: -len("/chat/completions")]
+	if baseUrl.endswith("/v1"):
+		return f"{baseUrl}/models"
+	return f"{baseUrl}/v1/models"
+
+
+@dataclass(frozen=True)
+class OpenAICompatibleSettings:
+	apiKey: str
+	baseUrl: str
+	chatCompletionsPath: str = "/v1/chat/completions"
+
+
+class OpenAICompatibleClient:
+	"""Small transport boundary shared by Chat Completions engines."""
+
+	def __init__(self, settings: OpenAICompatibleSettings, transport: Any = None) -> None:
+		self.apiKey = settings.apiKey.strip()
+		self.baseUrl = settings.baseUrl.rstrip("/")
+		self.chatCompletionsPath = settings.chatCompletionsPath
+		self._transport = transport or network
+
+	@property
+	def headers(self) -> dict[str, str]:
+		return {
+			"Content-Type": "application/json",
+			"Authorization": f"Bearer {self.apiKey}",
+		}
+
+	def requestParams(
+		self,
+		payload: dict[str, Any],
+		*,
+		timeout: float,
+		stream: bool = False,
+		cancelCheck: Any = None,
+	) -> dict[str, Any]:
+		if stream:
+			payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
+		params: dict[str, Any] = {
+			"method": "POST",
+			"url": buildChatCompletionsUrl(self.baseUrl, self.chatCompletionsPath),
+			"headers": self.headers,
+			"json": payload,
+			"timeout": timeout,
+		}
+		if callable(cancelCheck):
+			params["cancelCheck"] = cancelCheck
+		return params
+
+	def complete(
+		self,
+		payload: dict[str, Any],
+		*,
+		timeout: float,
+		cancelCheck: Any = None,
+	) -> dict[str, Any]:
+		response = self._transport.sendRequest(
+			**self.requestParams(payload, timeout=timeout, cancelCheck=cancelCheck),
+		)
+		return parseResponse(response.content)
+
+	def stream(
+		self,
+		payload: dict[str, Any],
+		*,
+		timeout: float,
+		cancelCheck: Any = None,
+	):
+		return self._transport.sendStreamingRequest(
+			**self.requestParams(payload, timeout=timeout, stream=True, cancelCheck=cancelCheck),
+		)
+
+	def listModels(self, *, timeout: float = 30, cancelCheck: Any = None, retry: bool = True) -> list[str]:
+		response = self._transport.sendRequest(
+			"GET",
+			buildModelsUrl(self.baseUrl),
+			headers={"Authorization": f"Bearer {self.apiKey}"},
+			timeout=timeout,
+			cancelCheck=cancelCheck,
+			retry=retry,
+		)
+		payload = response.json()
+		if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+			return []
+		return list(
+			dict.fromkeys(
+				item["id"].strip()
+				for item in payload["data"]
+				if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"].strip()
+			)
+		)
+
+
 SUPPORTED_FINISH_REASONS = {"stop", "tool_calls"}
 
-# Translators: An error message for invalid data returned by Kimi.
-_INVALID_RESPONSE_MESSAGE = _("Kimi returned an invalid response.")
-# Translators: An error message for malformed Kimi Chat Completion data.
-_MALFORMED_COMPLETION_MESSAGE = _("Kimi returned malformed completion data.")
-# Translators: An error message for malformed data in a Kimi streaming response.
-_MALFORMED_STREAM_MESSAGE = _("Kimi streaming response contained malformed data.")
+# Translators: An error message for invalid data returned by OpenAI-compatible service.
+_INVALID_RESPONSE_MESSAGE = _("OpenAI-compatible service returned an invalid response.")
+# Translators: An error message for malformed OpenAI-compatible service Chat Completion data.
+_MALFORMED_COMPLETION_MESSAGE = _("OpenAI-compatible service returned malformed completion data.")
+# Translators: An error message for malformed data in a OpenAI-compatible service streaming response.
+_MALFORMED_STREAM_MESSAGE = _("OpenAI-compatible service streaming response contained malformed data.")
 
 
-def parseKimiResponse(result: bytes | str) -> dict[str, Any]:
-	"""Decodes a successful Kimi JSON response."""
+def parseResponse(result: bytes | str) -> dict[str, Any]:
+	"""Decodes a successful OpenAI-compatible service JSON response."""
 	try:
 		if isinstance(result, bytes):
 			result = result.decode("utf-8")
@@ -40,7 +155,7 @@ def parseKimiResponse(result: bytes | str) -> dict[str, Any]:
 	return response
 
 
-def getKimiApiErrorMessage(response: dict[str, Any]) -> str | None:
+def getApiErrorMessage(response: dict[str, Any]) -> str | None:
 	"""Extracts an API error object without exposing credentials."""
 	error = response.get("error")
 	if error is None and response.get("type") == "error":
@@ -48,33 +163,33 @@ def getKimiApiErrorMessage(response: dict[str, Any]) -> str | None:
 	if error is None:
 		return None
 	if isinstance(error, dict):
-		# Translators: A fallback message when a Kimi API error has no details.
+		# Translators: A fallback message when a OpenAI-compatible service API error has no details.
 		message = error.get("message") or error.get("code") or _("Unknown API error")
 	else:
 		message = error
 	return str(message)[:500]
 
 
-def validateKimiCompletion(
+def validateCompletion(
 	response: dict[str, Any],
 	allowedFinishReasons: set[str] = SUPPORTED_FINISH_REASONS,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
 	"""Validates one non-streaming Chat Completion and returns choice/message."""
-	apiError = getKimiApiErrorMessage(response)
+	apiError = getApiErrorMessage(response)
 	if apiError:
-		# Translators: An error returned by Kimi. The placeholder contains the API's message.
-		raise ApiError(_("Kimi API error: {}").format(apiError))
+		# Translators: An error returned by OpenAI-compatible service. The placeholder contains the API's message.
+		raise ApiError(_("OpenAI-compatible service API error: {}").format(apiError))
 	choices = response.get("choices")
 	if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
 		raise ApiError(_MALFORMED_COMPLETION_MESSAGE)
 	choice = choices[0]
 	finishReason = choice.get("finish_reason")
 	if finishReason == "length":
-		# Translators: Reported when Kimi stops because the output token limit was reached.
-		raise ApiError(_("Kimi response was truncated at the token limit."))
+		# Translators: Reported when OpenAI-compatible service stops because the output token limit was reached.
+		raise ApiError(_("OpenAI-compatible service response was truncated at the token limit."))
 	if not isinstance(finishReason, str) or finishReason not in allowedFinishReasons:
-		# Translators: An error for an unsupported Kimi completion finish reason.
-		raise ApiError(_("Kimi returned an unsupported completion result."))
+		# Translators: An error for an unsupported OpenAI-compatible service completion finish reason.
+		raise ApiError(_("OpenAI-compatible service returned an unsupported completion result."))
 	message = choice.get("message")
 	if not isinstance(message, dict) or message.get("role") != "assistant":
 		raise ApiError(_MALFORMED_COMPLETION_MESSAGE)
@@ -88,7 +203,7 @@ def validateKimiCompletion(
 	return choice, message
 
 
-def getKimiMessageText(message: dict[str, Any]) -> str:
+def getMessageText(message: dict[str, Any]) -> str:
 	"""Extracts visible text from a Chat Completion assistant message."""
 	content = message.get("content")
 	if isinstance(content, str):
@@ -102,7 +217,7 @@ def getKimiMessageText(message: dict[str, Any]) -> str:
 	)
 
 
-def extractKimiAssistantMessage(response: Any) -> dict[str, Any] | None:
+def extractAssistantMessage(response: Any) -> dict[str, Any] | None:
 	"""Gets an assistant message from either a raw response or message object."""
 	if not isinstance(response, dict):
 		return None
@@ -119,8 +234,8 @@ def extractKimiAssistantMessage(response: Any) -> dict[str, Any] | None:
 
 
 @dataclass
-class KimiStreamState:
-	"""Reconstructs one OpenAI-compatible Kimi SSE completion."""
+class ChatCompletionStreamState:
+	"""Reconstructs one OpenAI-compatible SSE completion."""
 
 	metadata: dict[str, Any] = field(default_factory=dict)
 	message: dict[str, Any] = field(default_factory=lambda: {"role": "assistant"})
@@ -167,10 +282,10 @@ class KimiStreamState:
 		if not isinstance(event, dict):
 			self._malformed = True
 			return None
-		apiError = getKimiApiErrorMessage(event)
+		apiError = getApiErrorMessage(event)
 		if apiError:
-			# Translators: An error returned by Kimi. The placeholder contains the API's message.
-			raise ApiError(_("Kimi API error: {}").format(apiError))
+			# Translators: An error returned by OpenAI-compatible service. The placeholder contains the API's message.
+			raise ApiError(_("OpenAI-compatible service API error: {}").format(apiError))
 		for key in ("id", "object", "created", "model"):
 			if key not in event:
 				continue
@@ -300,25 +415,37 @@ class KimiStreamState:
 		if self._malformed:
 			raise StreamIncompleteError(_MALFORMED_STREAM_MESSAGE)
 		if not self._sawDone:
-			# Translators: Reported when a Kimi stream ends without its completion marker.
-			raise StreamIncompleteError(_("Kimi streaming response ended before completion."))
+			# Translators: Reported when a OpenAI-compatible service stream ends without its completion marker.
+			raise StreamIncompleteError(
+				_("OpenAI-compatible service streaming response ended before completion.")
+			)
 		if self._finishReason is None:
-			# Translators: Reported when a Kimi stream does not provide a finish reason.
-			raise StreamIncompleteError(_("Kimi streaming response did not include a finish reason."))
+			# Translators: Reported when a OpenAI-compatible service stream does not provide a finish reason.
+			raise StreamIncompleteError(
+				_("OpenAI-compatible service streaming response did not include a finish reason.")
+			)
 		if self._finishReason == "length":
-			# Translators: Reported when Kimi stops because the output token limit was reached.
-			raise StreamIncompleteError(_("Kimi response was truncated at the token limit."))
+			# Translators: Reported when OpenAI-compatible service stops because the output token limit was reached.
+			raise StreamIncompleteError(
+				_("OpenAI-compatible service response was truncated at the token limit.")
+			)
 		if self._finishReason not in SUPPORTED_FINISH_REASONS:
-			# Translators: An error for an unsupported Kimi completion finish reason.
-			raise StreamIncompleteError(_("Kimi returned an unsupported completion result."))
+			# Translators: An error for an unsupported OpenAI-compatible service completion finish reason.
+			raise StreamIncompleteError(
+				_("OpenAI-compatible service returned an unsupported completion result.")
+			)
 		if self._finishReason == "tool_calls":
 			if not self._toolCalls:
-				# Translators: Reported when a Kimi stream claims to call a tool but supplies none.
-				raise StreamIncompleteError(_("Kimi streaming response contained no tool call."))
+				# Translators: Reported when a OpenAI-compatible service stream claims to call a tool but supplies none.
+				raise StreamIncompleteError(
+					_("OpenAI-compatible service streaming response contained no tool call.")
+				)
 		else:
 			if self._toolCalls:
-				# Translators: Reported when a Kimi stream unexpectedly includes a tool call.
-				raise StreamIncompleteError(_("Kimi streaming response returned an unexpected tool call."))
+				# Translators: Reported when a OpenAI-compatible service stream unexpectedly includes a tool call.
+				raise StreamIncompleteError(
+					_("OpenAI-compatible service streaming response returned an unexpected tool call.")
+				)
 		self._validateToolCalls()
 		if self._malformed:
 			raise StreamIncompleteError(_MALFORMED_STREAM_MESSAGE)

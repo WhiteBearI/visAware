@@ -10,19 +10,19 @@ import json
 from typing import Any
 
 import addonHandler
-import config
 from logHandler import log
 
 from .. import network
-from ..engineGUIHelper import (
+from ..engineSettings import (
 	ChoiceEngineSetting,
 	TextInputEngineSetting,
 )
+from ..requestLogging import isVerboseDebugLoggingEnabled
 from ..exceptions import ApiError, AuthenticationError
 from ..recogHandler import BaseDescriber, RecognitionRequest
-from ._googleGenerativeLanguage import (
+from ..geminiGenerateContent import (
 	buildConversationContents,
-	buildGenerateContentUrl,
+	buildGenerateContentRequest,
 	extractTextFromCandidate,
 	extractTextFromResponse,
 	getApiErrorMessage,
@@ -60,13 +60,6 @@ SYSTEM_INSTRUCTION = _(
 	"Follow the language of the user's image-description request.",
 )
 DEFAULT_PROMPT = DEFAULT_IMAGE_DESCRIPTION_PROMPT
-
-
-def _isVerboseDebugLoggingEnabled() -> bool:
-	try:
-		return bool(config.conf["visAwareGeneral"]["verboseDebugLogging"])
-	except (KeyError, AttributeError, TypeError):
-		return False
 
 
 def _previewTextForLog(text: str, limit: int = LOG_TEXT_PREVIEW_CHARS) -> str:
@@ -233,7 +226,7 @@ class CustomContentRecognizer(BaseDescriber):
 		stream: bool,
 		purpose: str,
 	) -> None:
-		if not _isVerboseDebugLoggingEnabled():
+		if not isVerboseDebugLoggingEnabled():
 			return
 		promptPreview = _previewTextForLog(self.prompt)
 		promptKind = "custom" if self.prompt != DEFAULT_PROMPT else "default"
@@ -247,7 +240,7 @@ class CustomContentRecognizer(BaseDescriber):
 		)
 
 	def _logResponseDiagnostics(self, responseJson: dict[str, Any]) -> None:
-		if not _isVerboseDebugLoggingEnabled():
+		if not isVerboseDebugLoggingEnabled():
 			return
 		candidates = responseJson.get("candidates")
 		promptFeedback = responseJson.get("promptFeedback")
@@ -289,11 +282,6 @@ class CustomContentRecognizer(BaseDescriber):
 				_("API key is missing. Please configure it in the Gemma engine settings."),
 			)
 
-		url = buildGenerateContentUrl(self.model, request.streamResult)
-		headers = {
-			"Content-Type": "application/json",
-			"x-goog-api-key": self.apiKey,
-		}
 		imagePart = self._buildInlineImagePart(imageContent)
 		payload: dict[str, Any] = {
 			"systemInstruction": _buildSystemInstruction(),
@@ -320,12 +308,7 @@ class CustomContentRecognizer(BaseDescriber):
 			purpose="recognition",
 		)
 
-		return {
-			"method": "POST",
-			"url": url,
-			"headers": headers,
-			"json": payload,
-		}
+		return buildGenerateContentRequest(self.apiKey, self.model, payload, stream=request.streamResult)
 
 	def _buildInlineImagePart(self, imageContent: bytes) -> dict[str, Any]:
 		"""
@@ -380,10 +363,6 @@ class CustomContentRecognizer(BaseDescriber):
 		image = self._getConversationImage(context)
 		imageContent = self.prepareImageContentFromImage(image)
 		imagePart = self._buildInlineImagePart(imageContent)
-		headers = {
-			"Content-Type": "application/json",
-			"x-goog-api-key": self.apiKey,
-		}
 		payload = {
 			"systemInstruction": _buildSystemInstruction(),
 			"contents": buildConversationContents(
@@ -402,12 +381,7 @@ class CustomContentRecognizer(BaseDescriber):
 			stream=stream,
 			purpose="follow-up",
 		)
-		return {
-			"method": "POST",
-			"url": buildGenerateContentUrl(self.model, stream=stream),
-			"headers": headers,
-			"json": payload,
-		}
+		return buildGenerateContentRequest(self.apiKey, self.model, payload, stream=stream)
 
 	def _buildGenerationConfig(self) -> dict[str, Any]:
 		"""

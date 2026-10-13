@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-import config
 from threading import Event, Thread
 import time
 from typing import TYPE_CHECKING
@@ -17,6 +16,7 @@ from logHandler import log
 import ui
 import wx
 
+from ..requestLogging import isVerboseDebugLoggingEnabled
 from ..exceptions import ApiError, AuthenticationError, CancellationError, NetworkError
 from ..cues import CueType
 from .actions import (
@@ -125,7 +125,7 @@ class AgentSession:
 					unchangedCount = 0
 				lastDigest = screenshot.digest
 				lastWindowKey = _windowKey(screenshot.window)
-				if _verboseDebugLogging():
+				if isVerboseDebugLoggingEnabled():
 					log.debug(
 						f"Agent screenshot: size={screenshot.width}x{screenshot.height}, "
 						f"screenBounds=({screenshot.screenLeft}, {screenshot.screenTop}, "
@@ -353,13 +353,6 @@ class AgentSession:
 	def _message(self, text: str) -> None:
 		if text:
 			wx.CallAfter(ui.message, text)
-
-
-def _verboseDebugLogging() -> bool:
-	try:
-		return bool(config.conf["visAwareGeneral"]["verboseDebugLogging"])
-	except Exception:
-		return False
 
 
 def _decisionActions(decision: AgentDecision) -> list[AgentAction]:

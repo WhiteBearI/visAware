@@ -18,7 +18,7 @@ from .._ollamaClient import (
 	parseOllamaGenerateStreamChunk,
 )
 from .._ollamaEngine import OllamaEngineMixin
-from ..engineGUIHelper import (
+from ..engineSettings import (
 	BooleanEngineSetting,
 	ButtonEngineSetting,
 	ChoiceEngineSetting,

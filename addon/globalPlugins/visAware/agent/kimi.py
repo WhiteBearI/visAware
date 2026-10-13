@@ -14,18 +14,23 @@ from collections.abc import Callable
 from typing import Any
 
 import addonHandler
-import config
 from logHandler import log
 
 from .. import network
+from ..requestLogging import isVerboseDebugLoggingEnabled, redactForLog
 from ..exceptions import ApiError, AuthenticationError
-from ..kimiAPI import KimiStreamState, getKimiApiErrorMessage, parseKimiResponse, validateKimiCompletion
-from ..kimiModels import (
+from ..openaiCompatible import (
+	ChatCompletionStreamState,
+	OpenAICompatibleClient,
+	OpenAICompatibleSettings,
+	getApiErrorMessage,
+	validateCompletion,
+)
+from ..kimiConnection import resolveKimiConnection
+from ..kimiProvider import (
 	DEFAULT_KIMI_AGENT_MODEL,
 	DEFAULT_KIMI_BASE_URL,
 	applyKimiThinking,
-	buildKimiChatCompletionsUrl,
-	buildKimiModelsUrl,
 	filterKimiModels,
 	getPreferredKimiModel,
 	isKimiK26Model,
@@ -34,7 +39,6 @@ from ..kimiModels import (
 	normalizeKimiReasoningEffortForModel,
 	requiresKimiReasoningContent,
 	requiresPreservedThinking,
-	resolveKimiConnection,
 )
 from .actions import JPEG_QUALITY, Screenshot, formatScreenshotPromptContext
 from .decision import AGENT_ACTION_SCHEMA, AgentDecision, parseAgentDecision
@@ -125,23 +129,17 @@ class KimiAgentClient:
 			"tools": [_buildAgentDecisionTool()],
 		}
 		applyKimiThinking(payload, self.model, self.reasoningEffort)
-		if self._shouldStream():
-			payload["stream"] = True
-			payload["stream_options"] = {"include_usage": True}
+		shouldStream = self._shouldStream()
 		if isKimiK3Model(self.model):
 			payload["tool_choice"] = "required"
-		requestParams = {
-			"method": "POST",
-			"url": buildKimiChatCompletionsUrl(self.baseUrl),
-			"headers": {
-				"Content-Type": "application/json",
-				"Authorization": f"Bearer {self.apiKey}",
-			},
-			"json": payload,
-			"timeout": KIMI_REQUEST_TIMEOUT,
-		}
-		if _verboseDebugLogging():
-			log.debug(f"Kimi agent request params: {_redactForLog(requestParams)}")
+		requestParams = self._protocolClient().requestParams(
+			payload,
+			timeout=KIMI_REQUEST_TIMEOUT,
+			stream=shouldStream,
+			cancelCheck=self._cancellationChecker,
+		)
+		if isVerboseDebugLoggingEnabled():
+			log.debug(f"Kimi agent request params: {redactForLog(requestParams)}")
 		startTime = time.perf_counter()
 		apiResult = self._sendCompletion(requestParams)
 		duration = time.perf_counter() - startTime
@@ -152,8 +150,8 @@ class KimiAgentClient:
 			f"finishReason={finishReason or 'unknown'}, "
 			f"{_formatUsage(apiResult)}",
 		)
-		if _verboseDebugLogging():
-			log.debug(f"Kimi agent response: {_redactForLog(apiResult)}")
+		if isVerboseDebugLoggingEnabled():
+			log.debug(f"Kimi agent response: {redactForLog(apiResult)}")
 		return self._parseDecision(apiResult)
 
 	def _shouldStream(self) -> bool:
@@ -161,15 +159,27 @@ class KimiAgentClient:
 		return isKimiK27Model(self.model) or (isKimiK26Model(self.model) and self.reasoningEffort != "none")
 
 	def _sendCompletion(self, requestParams: dict[str, Any]) -> dict[str, Any]:
-		if callable(self._cancellationChecker):
-			requestParams = {**requestParams, "cancelCheck": self._cancellationChecker}
+		client = self._protocolClient()
 		if requestParams["json"].get("stream"):
-			streamState = KimiStreamState()
-			for chunk in network.sendStreamingRequest(**requestParams):
+			streamState = ChatCompletionStreamState()
+			for chunk in client.stream(
+				requestParams["json"],
+				timeout=requestParams["timeout"],
+				cancelCheck=self._cancellationChecker,
+			):
 				streamState.consume(chunk)
 			return streamState.buildResponse()
-		response = network.sendRequest(**requestParams)
-		return parseKimiResponse(response.content)
+		return client.complete(
+			requestParams["json"],
+			timeout=requestParams["timeout"],
+			cancelCheck=self._cancellationChecker,
+		)
+
+	def _protocolClient(self) -> OpenAICompatibleClient:
+		return OpenAICompatibleClient(
+			OpenAICompatibleSettings(apiKey=self.apiKey, baseUrl=self.baseUrl),
+			transport=network,
+		)
 
 	def _buildMessages(self, goal: str, screenshot: Screenshot, history: list[str]) -> None:
 		"""Builds the OpenAI-compatible message list for one Agent step."""
@@ -242,7 +252,7 @@ class KimiAgentClient:
 
 	def _parseDecision(self, apiResult: dict[str, Any]) -> AgentDecision:
 		"""Parses one OpenAI-compatible tool call into an AgentDecision."""
-		apiError = getKimiApiErrorMessage(apiResult)
+		apiError = getApiErrorMessage(apiResult)
 		if apiError:
 			# Translators: An error message returned from the Kimi API.
 			raise ApiError(_("Kimi API error: {}").format(apiError))
@@ -253,7 +263,7 @@ class KimiAgentClient:
 				# Translators: Reported when Kimi cannot finish an Agent action within the token limit.
 				raise ApiError(_("Kimi agent response was truncated at the token limit."))
 		try:
-			_choice, message = validateKimiCompletion(apiResult, {"tool_calls"})
+			_choice, message = validateCompletion(apiResult, {"tool_calls"})
 		except ApiError as e:
 			raise ApiError(_MALFORMED_AGENT_ACTION_MESSAGE) from e
 		toolCalls = message.get("tool_calls")
@@ -306,27 +316,10 @@ class KimiAgentClient:
 
 	def listModels(self) -> list[str]:
 		"""Fetches available model names from the Kimi API."""
-		response = network.sendRequest(
-			"GET",
-			buildKimiModelsUrl(self.baseUrl),
-			headers={"Authorization": f"Bearer {self.apiKey}"},
-			timeout=30,
-		)
 		try:
-			apiResult = response.json()
-		except ValueError:
+			modelIds = self._protocolClient().listModels(timeout=30, cancelCheck=self._cancellationChecker)
+		except (ValueError, TypeError):
 			return []
-		if not isinstance(apiResult, dict):
-			return []
-		modelIds = set()
-		models = apiResult.get("data", [])
-		if not isinstance(models, list):
-			return []
-		for model in models:
-			if isinstance(model, dict) and isinstance(model.get("id"), str):
-				modelId = model["id"].strip()
-				if modelId:
-					modelIds.add(modelId)
 		return filterKimiModels(self.baseUrl, sorted(modelIds))
 
 
@@ -457,16 +450,3 @@ def _formatUsage(apiResult: dict[str, Any]) -> str:
 		f"tokens=input:{usage.get('prompt_tokens', usage.get('input_tokens'))}, "
 		f"output:{usage.get('completion_tokens', usage.get('output_tokens'))}"
 	)
-
-
-def _verboseDebugLogging() -> bool:
-	try:
-		return bool(config.conf["visAwareGeneral"]["verboseDebugLogging"])
-	except Exception:
-		return False
-
-
-def _redactForLog(value: Any) -> Any:
-	from ..recogHandler import _redactRequestParamsForLog
-
-	return _redactRequestParamsForLog(value)

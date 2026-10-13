@@ -10,7 +10,7 @@ from typing import Any
 
 import addonHandler
 
-from ...engineGUIHelper import ChoiceEngineSetting, TextInputEngineSetting
+from ...engineSettings import ChoiceEngineSetting, TextInputEngineSetting
 from ...geminiModels import (
 	DEFAULT_GEMINI_MEDIA_RESOLUTION,
 	DEFAULT_GEMINI_MODEL,
@@ -18,7 +18,7 @@ from ...geminiModels import (
 	getGeminiMediaResolutionChoices,
 )
 from ..gemini import GeminiAgentClient, GeminiAgentSettings
-from ..settings import BaseAgentEngine
+from ..engine import BaseAgentEngine
 
 addonHandler.initTranslation()
 

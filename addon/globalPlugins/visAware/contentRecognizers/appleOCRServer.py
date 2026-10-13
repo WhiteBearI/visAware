@@ -11,7 +11,7 @@ from typing import Any, override
 import addonHandler
 from logHandler import log
 
-from ..engineGUIHelper import TextInputEngineSetting
+from ..engineSettings import TextInputEngineSetting
 from ..exceptions import ApiError
 from ..recogHandler import BaseRecognizer, RecognitionRequest
 

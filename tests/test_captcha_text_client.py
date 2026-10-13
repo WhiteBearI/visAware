@@ -162,7 +162,7 @@ class CaptchaTextClientTestCase(unittest.TestCase):
 			),
 			"ui": types.SimpleNamespace(),
 			"wx": types.SimpleNamespace(),
-			f"{package}.engineGUIHelper": types.SimpleNamespace(
+			f"{package}.engineSettings": types.SimpleNamespace(
 				**dict.fromkeys(
 					(
 						"BooleanEngineSetting",

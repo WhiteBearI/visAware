@@ -2,7 +2,7 @@
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
-"""Small helpers for Google's Generative Language API image describers."""
+"""Google Generate Content protocol helpers shared by OCR and image description."""
 
 import addonHandler
 import json
@@ -27,6 +27,17 @@ def buildGenerateContentUrl(model: str, stream: bool) -> str:
 	if stream:
 		return f"{url}?alt=sse"
 	return url
+
+
+def buildGenerateContentRequest(
+	apiKey: str, model: str, payload: dict[str, Any], *, stream: bool = False
+) -> dict[str, Any]:
+	return {
+		"method": "POST",
+		"url": buildGenerateContentUrl(model, stream),
+		"headers": {"Content-Type": "application/json", "x-goog-api-key": apiKey},
+		"json": payload,
+	}
 
 
 def parseSseDataChunk(chunk: bytes, serviceName: str) -> dict[str, Any] | None:

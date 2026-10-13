@@ -13,19 +13,18 @@ import time
 from typing import Any
 
 import addonHandler
-import config
 from logHandler import log
 
 from .. import network
+from ..requestLogging import isVerboseDebugLoggingEnabled, redactForLog
 from ..exceptions import ApiError, AuthenticationError
+from ..geminiInteractions import buildInteractionsRequest
 from ..geminiModels import getGeminiLowLatencyThinkingConfig, supportsGeminiPerImageResolution
 from .actions import JPEG_QUALITY, Screenshot, formatScreenshotPromptContext
 from .decision import AGENT_ACTION_SCHEMA, AgentDecision, parseAgentDecision
 
 addonHandler.initTranslation()
 
-INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
-INTERACTIONS_API_REVISION = "2026-05-20"
 AGENT_DECISION_TOOL_NAME = "agent_decision"
 MAX_HISTORY_ITEMS = 8
 FUNCTION_RESULT_HISTORY_ITEMS = 2
@@ -68,19 +67,9 @@ class GeminiAgentClient:
 		}
 		if self._previousInteractionId:
 			payload["previous_interaction_id"] = self._previousInteractionId
-		requestParams = {
-			"method": "POST",
-			"url": INTERACTIONS_URL,
-			"headers": {
-				"Content-Type": "application/json",
-				"Api-Revision": INTERACTIONS_API_REVISION,
-				"x-goog-api-key": self.apiKey,
-			},
-			"json": payload,
-			"timeout": 60,
-		}
-		if _verboseDebugLogging():
-			log.debug(f"Gemini agent request params: {_redactForLog(requestParams)}")
+		requestParams = buildInteractionsRequest(self.apiKey, payload, timeout=60)
+		if isVerboseDebugLoggingEnabled():
+			log.debug(f"Gemini agent request params: {redactForLog(requestParams)}")
 		startTime = time.perf_counter()
 		response = network.sendRequest(**requestParams)
 		apiResult = response.json()
@@ -95,8 +84,8 @@ class GeminiAgentClient:
 			f"steps={_formatStepTypes(apiResult)}, "
 			f"{_formatUsage(apiResult)}",
 		)
-		if _verboseDebugLogging():
-			log.debug(f"Gemini agent response: {_redactForLog(apiResult)}")
+		if isVerboseDebugLoggingEnabled():
+			log.debug(f"Gemini agent response: {redactForLog(apiResult)}")
 		return self._parseDecision(apiResult)
 
 	def _buildInputSteps(
@@ -351,16 +340,3 @@ def _formatUsage(apiResult: dict[str, Any]) -> str:
 		f"thought:{usage.get('total_thought_tokens')}, "
 		f"total:{usage.get('total_tokens')}"
 	)
-
-
-def _verboseDebugLogging() -> bool:
-	try:
-		return bool(config.conf["visAwareGeneral"]["verboseDebugLogging"])
-	except Exception:
-		return False
-
-
-def _redactForLog(value: Any) -> Any:
-	from ..recogHandler import _redactRequestParamsForLog
-
-	return _redactRequestParamsForLog(value)

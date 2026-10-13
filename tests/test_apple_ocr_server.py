@@ -54,9 +54,9 @@ def loadAppleOCRServerModule() -> types.ModuleType:
 	exceptionsModule.ApiError = type("ApiError", (Exception,), {})
 	sys.modules[exceptionsModule.__name__] = exceptionsModule
 
-	engineGUIHelperModule = types.ModuleType("addon.globalPlugins.visAware.engineGUIHelper")
-	engineGUIHelperModule.TextInputEngineSetting = _TextInputEngineSetting
-	sys.modules[engineGUIHelperModule.__name__] = engineGUIHelperModule
+	engineSettingsModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
+	engineSettingsModule.TextInputEngineSetting = _TextInputEngineSetting
+	sys.modules[engineSettingsModule.__name__] = engineSettingsModule
 
 	recogHandlerModule = types.ModuleType("addon.globalPlugins.visAware.recogHandler")
 	recogHandlerModule.BaseRecognizer = _BaseRecognizer

@@ -16,7 +16,7 @@ import ui
 import wx
 
 from .. import recogHistory
-from ..engineGUIHelper import (
+from ..engineSettings import (
 	BooleanEngineSetting,
 	ButtonEngineSetting,
 	ChoiceEngineSetting,
