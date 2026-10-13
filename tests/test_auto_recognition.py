@@ -8,7 +8,7 @@ import types
 import unittest
 from unittest.mock import Mock, patch
 
-from test_request_log_redaction import load_recog_handler_module
+from tests.test_request_log_redaction import load_recog_handler_module
 
 
 def _installModuleStubs() -> None:

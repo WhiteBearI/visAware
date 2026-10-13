@@ -10,47 +10,38 @@ import config
 import globalPluginHandler
 import globalVars
 import gui
-import os
 import wx
 import inputCore
 from logHandler import log
 from gui.settingsDialogs import NVDASettingsDialog, SettingsPanel
 import functools
+from threading import Event
 from typing import Any, TYPE_CHECKING
 from collections.abc import Callable
-from threading import Event
 from scriptHandler import script
 from contentRecog import (
 	RecogImageInfo,
-	recogUi,
 	LinesWordsResult,
 	RecognitionResult,
 	SimpleTextResult,
 )
 import ui
 import vision
-from PIL import Image, ImageGrab
 
 from ._autoRecognition import AutoRecognitionController, getNextAutoRecognitionSetting
 from ._taskCues import TaskCueManager
 from .askDialog import AskQuestionFrame
 from .agent.engine import AgentHandler
 from .agent.settings import AgentPanel
-from .agent.session import AgentSession
-from .exceptions import CancellationError, AuthenticationError, NetworkError, ApiError
+from .agent.controller import AgentController
+from .exceptions import ApiError
 from . import recogHistory
-from ._screenCapture import (
-	captureNvdaPixels,
-	imageFromNvdaPixels,
-	isScreenCurtainCaptureSupported,
-)
 from .conversation import ConversationContext, makeConversationContext
 from .markdownRenderer import showMarkdownBrowseableMessage
+from .recognitionRuntime import RecognitionRuntime
 from .recogHandler import (
 	CustomOCRHandler,
 	ImageDescriberHandler,
-	StreamFinished,
-	StreamText,
 	getCycleSourceTypes,
 	getAutoRecognitionTypeAndEngine,
 	getAutoRecognitionTypeChoices,
@@ -64,7 +55,6 @@ from .recognitionSettings import AutomaticRecognitionPanel, CustomOCRPanel, Imag
 from .streamingSpeech import StreamingSpeechPresenter
 
 if TYPE_CHECKING:
-	from contentRecog import ContentRecognizer
 	from .abstractEngine import AbstractEngineHandler
 
 addonHandler.initTranslation()
@@ -87,23 +77,6 @@ GENERAL_CONFIG_SPEC = {
 }
 
 
-class _AutoSayAllRecogResultNVDAObject(recogUi.RecogResultNVDAObject):
-	"""Recognition result document that starts say-all after first focus."""
-
-	def __init__(self, *args: Any, **kwargs: Any) -> None:
-		super().__init__(*args, **kwargs)
-		self._shouldSayAllOnFirstFocus = True
-
-	def event_gainFocus(self) -> None:
-		super().event_gainFocus()
-		if not self._shouldSayAllOnFirstFocus:
-			return
-		self._shouldSayAllOnFirstFocus = False
-		from speech import sayAll
-
-		sayAll.SayAllHandler.readText(sayAll.CURSOR.CARET)
-
-
 def multiPressAction(timeout: int = 350):
 	"""
 	A decorator that counts consecutive presses of a gesture.
@@ -117,6 +90,8 @@ def multiPressAction(timeout: int = 350):
 	def decorator(scriptFunc: Callable[..., None]) -> Callable[..., None]:
 		@functools.wraps(scriptFunc)
 		def wrapper(self: "GlobalPlugin", gesture: "inputCore.InputGesture") -> None:
+			if getattr(self, "_terminated", False):
+				return
 			if not hasattr(self, "_multiPressStates"):
 				self._multiPressStates = {}
 			stateKey = scriptFunc.__name__
@@ -127,6 +102,10 @@ def multiPressAction(timeout: int = 350):
 
 			def finalize():
 				"""Called after the timeout to execute the script with the final press count."""
+				if getattr(self, "_terminated", False):
+					funcState["count"] = 0
+					funcState["timer"] = None
+					return
 				finalCount = funcState["count"]
 				# Reset state for the next sequence.
 				funcState["count"] = 0
@@ -174,13 +153,9 @@ class OCRMultiCategorySettingsDialog(NVDASettingsDialog):
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self):
 		super().__init__()
-		self._activeEngine = None
-		self._activeRecognitionSequence = 0
+		self._terminated = False
 		self._taskCues = TaskCueManager()
-		self._recognitionCue: Event | None = None
-		self._agentSession: AgentSession | None = None
-		self._agentPromptDialogActive = False
-		self._agentQuestionDialog: wx.Dialog | None = None
+		self._agentController = AgentController(self._taskCues, self._isScreenCurtainRunning)
 		self._streamingSpeechPresenter = StreamingSpeechPresenter()
 		self._autoRecognitionController: AutoRecognitionController | None = None
 		self._autoRecognitionExtensionPoints: Any | None = None
@@ -193,6 +168,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._askQuestionHistoryEntry: dict[str, Any] | None = None
 		self._askQuestionContext: ConversationContext | None = None
 		self.ocrSettingMenuItem: wx.MenuItem | None = None
+		self._recognitionRuntime = RecognitionRuntime(
+			self._taskCues,
+			self._streamingSpeechPresenter,
+			None,
+			None,
+			self._cancelRecognitionOutsideRuntime,
+		)
 		if globalVars.appArgs.secure or getattr(config, "isAppX", False):
 			return
 		config.conf.spec["visAwareGeneral"] = GENERAL_CONFIG_SPEC
@@ -200,6 +182,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.ocrHandler = CustomOCRHandler
 		ImageDescriberHandler.initialize()
 		self.descHandler = ImageDescriberHandler
+		self._recognitionRuntime.setHandlers(self.ocrHandler, self.descHandler)
 		AgentHandler.initialize()
 		self._autoRecognitionController = AutoRecognitionController(self._taskCues)
 		self._registerAutoRecognitionEventHandlers()
@@ -229,7 +212,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			)
 
 	def terminate(self) -> None:
-		self._taskCues.terminate()
+		if self._terminated:
+			return
+		self._terminated = True
+		self._stopMultiPressTimers()
 		if self._autoRecognitionConfigProfileSwitchRegistered:
 			try:
 				config.post_configProfileSwitch.unregister(self._handleAutoRecognitionConfigProfileSwitch)
@@ -240,12 +226,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				)
 			self._autoRecognitionConfigProfileSwitchRegistered = False
 		self._unregisterAutoRecognitionEventHandlers()
+		self._cancelRecognitionOutsideRuntime(isUserInitiated=False)
 		if self._autoRecognitionController:
 			self._autoRecognitionController.terminate()
 			self._autoRecognitionController = None
-		self._stopAgent(isUserInitiated=False)
-		self._closeAgentQuestionDialog()
-		self._cancelCurrentRecognition(isUserInitiated=False)
+		self._agentController.terminate()
+		self._recognitionRuntime.terminate()
+		self._taskCues.terminate()
 		if self._askQuestionFrame:
 			self._askQuestionFrame.Destroy()
 			self._askQuestionFrame = None
@@ -260,11 +247,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Ignore errors on termination, as the menu might already be gone.
 			pass
 
+	def _stopMultiPressTimers(self) -> None:
+		for state in getattr(self, "_multiPressStates", {}).values():
+			timer = state.get("timer")
+			if timer and timer.IsRunning():
+				timer.Stop()
+			state["timer"] = None
+			state["count"] = 0
+
 	@staticmethod
 	def openSettingsDialog(evt: wx.CommandEvent) -> None:
 		gui.mainFrame.popupSettingsDialog(OCRMultiCategorySettingsDialog)
 
 	def _registerAutoRecognitionEventHandlers(self) -> None:
+		if self._terminated:
+			return
 		try:
 			if not vision.handler or not vision.handler.extensionPoints:
 				log.debug("Vis Aware automatic recognition could not register event handlers.")
@@ -539,182 +536,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gui.mainFrame.postPopup()
 
 	def _promptAndStartAgent(self) -> None:
-		if self._stopAgent(isUserInitiated=True):
-			return
-		if self._agentPromptDialogActive:
-			return
-		if self._isScreenCurtainRunning() and not isScreenCurtainCaptureSupported():
-			# Translators: A message shown when trying to use the AI agent with screen curtain enabled.
-			ui.message(_("Please disable screen curtain before starting the AI Agent."))
-			return
-		try:
-			from .agent.client import createAgentClient
-
-			createAgentClient()
-		except (AuthenticationError, NetworkError, ApiError) as e:
-			ui.message(str(e))
-			return
-		self._agentPromptDialogActive = True
-
-		def showDialog():
-			goal = ""
-			gui.mainFrame.prePopup()
-			try:
-				dialog = wx.TextEntryDialog(
-					gui.mainFrame,
-					# Translators: Prompt shown when starting the AI agent.
-					_("What should the AI Agent do?"),
-					# Translators: Title for the AI agent command dialog.
-					_("Vis Aware Agent"),
-				)
-				try:
-					if dialog.ShowModal() != wx.ID_OK:
-						return
-					goal = dialog.GetValue().strip()
-				finally:
-					dialog.Destroy()
-			finally:
-				gui.mainFrame.postPopup()
-				self._agentPromptDialogActive = False
-			if goal:
-				wx.CallLater(250, self._startAgent, goal)
-
-		wx.CallAfter(showDialog)
+		self._agentController.promptAndStart()
 
 	def _startAgent(self, goal: str) -> None:
-		if self._agentSession and self._agentSession.isRunning:
-			return
-		log.info("Starting Vis Aware agent from user prompt.")
-		self._agentSession = AgentSession(
-			goal,
-			self._taskCues,
-			onDone=self._onAgentDone,
-			askUser=self._askAgentUser,
-		)
-		self._agentSession.start()
+		self._agentController.start(goal)
 
 	def _stopAgent(self, isUserInitiated: bool = True) -> bool:
-		if self._agentSession and self._agentSession.isRunning:
-			if self._agentSession.cancel():
-				log.info("Vis Aware agent stop requested.")
-			else:
-				log.info("Vis Aware agent stop already pending.")
-			self._closeAgentQuestionDialog()
-			if isUserInitiated:
-				# Translators: Reported when the AI agent is being stopped by the user.
-				ui.message(_("Agent is stopping."))
-			return True
-		self._agentSession = None
-		return False
-
-	def _onAgentDone(self, session: AgentSession) -> None:
-		if self._agentSession is session:
-			self._agentSession = None
+		return self._agentController.stop(isUserInitiated)
 
 	def _askAgentUser(self, question: str, cancelEvent: Event) -> str | None:
-		doneEvent = Event()
-		result: dict[str, str | None] = {"answer": None}
-
-		def showDialog() -> None:
-			if cancelEvent.is_set():
-				doneEvent.set()
-				return
-			dialog = None
-			gui.mainFrame.prePopup()
-			try:
-				dialog = wx.TextEntryDialog(
-					gui.mainFrame,
-					question,
-					# Translators: Title for the AI agent command dialog.
-					_("Vis Aware Agent"),
-				)
-				self._agentQuestionDialog = dialog
-				if dialog.ShowModal() == wx.ID_OK and not cancelEvent.is_set():
-					result["answer"] = dialog.GetValue().strip()
-			finally:
-				if self._agentQuestionDialog is dialog:
-					self._agentQuestionDialog = None
-				if dialog:
-					dialog.Destroy()
-				gui.mainFrame.postPopup()
-				doneEvent.set()
-
-		wx.CallAfter(showDialog)
-		closeRequested = False
-		while not doneEvent.wait(0.05):
-			if cancelEvent.is_set() and not closeRequested:
-				closeRequested = True
-				wx.CallAfter(self._closeAgentQuestionDialog)
-		return result["answer"]
+		return self._agentController.askUser(question, cancelEvent)
 
 	def _closeAgentQuestionDialog(self) -> None:
-		dialog = self._agentQuestionDialog
-		if not dialog:
-			return
-		try:
-			if dialog.IsModal():
-				dialog.EndModal(wx.ID_CANCEL)
-			else:
-				dialog.Close()
-		except Exception:
-			log.debugWarning("Could not close Agent question dialog.", exc_info=True)
+		self._agentController.closeQuestionDialog()
 
-	def _prepareImageFromObject(
-		self,
-		getObjectFunc: Callable[[], NVDAObjects],
-		recognizer: "ContentRecognizer",
-	) -> tuple[RecogImageInfo, Image.Image] | None:
-		"""
-		Validates an object, captures its screen image, and prepares recognition info.
-
-		:param getObjectFunc: A function that returns the target NVDAObject.
-		:param recognizer: The content recognizer instance to use for validation.
-		:returns: A tuple of (RecogImageInfo, PIL.Image.Image) or None on failure.
-		"""
-		# Translators: Reported when content recognition (e.g. OCR) is attempted, but the content is not visible.
-		notVisibleMsg = _("Content is not visible")
-		targetObject = getObjectFunc()
-		if not recognizer.validateObject(targetObject):
-			return None
-		try:
-			left, top, width, height = targetObject.location
-			if not recognizer.validateCaptureBounds(targetObject.location):
-				return None
-		except TypeError:
-			log.debugWarning("Object returned invalid location %r" % getattr(targetObject, "location", "N/A"))
-			ui.message(notVisibleMsg)
-			return None
-		try:
-			imageInfo = RecogImageInfo.createFromRecognizer(left, top, width, height, recognizer)
-		except ValueError:
-			ui.message(notVisibleMsg)
-			return None
-		try:
-			pixels = captureNvdaPixels(imageInfo)
-			if pixels is None:
-				bbox = (
-					imageInfo.screenLeft,
-					imageInfo.screenTop,
-					imageInfo.screenLeft + imageInfo.screenWidth,
-					imageInfo.screenTop + imageInfo.screenHeight,
-				)
-				recognizeImage = ImageGrab.grab(bbox=bbox)
-			else:
-				recognizeImage = imageFromNvdaPixels(pixels, imageInfo)
-		except Exception:
-			log.error(f"Failed to grab image from object: {targetObject.name}", exc_info=True)
-			# Translators: A message shown when screen capture fails.
-			ui.message(_("Failed to capture screen image."))
-			return None
-		return imageInfo, recognizeImage
-
-	def _cancelCurrentRecognition(self, isUserInitiated: bool = True) -> bool:
-		"""
-		Cancels the currently active recognition task, if any.
-
-		:param isUserInitiated: True if the cancellation was triggered by a direct user action.
-		:returns: True if a task was cancelled, False otherwise.
-		"""
+	def _cancelRecognitionOutsideRuntime(self, isUserInitiated: bool) -> bool:
 		if self._stopAgent(isUserInitiated=isUserInitiated):
 			return True
 		if self._autoRecognitionController and self._autoRecognitionController.cancel():
@@ -722,28 +558,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# Translators: Reported when a recognition task is cancelled by the user.
 				ui.message(_("Recognition cancelled"))
 			return True
-		if self._activeEngine:
-			self._activeRecognitionSequence += 1
-			self._taskCues.stop(self._recognitionCue)
-			activeEngine = self._activeEngine
-			log.info(f"Cancelling active task from engine '{activeEngine.name}'.")
-			activeEngine.cancel(isUserInitiated=isUserInitiated)
-			if activeEngine._recognitionThread and activeEngine._recognitionThread.is_alive():
-				activeEngine._recognitionThread.join(timeout=0.2)
-			if hasattr(self, "_streamingSpeechPresenter"):
-				self._streamingSpeechPresenter.cancel()
-			self._activeEngine = None
-			if isUserInitiated:
-				# Translators: Reported when a recognition task is cancelled by the user.
-				ui.message(_("Recognition cancelled"))
-			return True
-		if hasattr(self, "_streamingSpeechPresenter") and self._streamingSpeechPresenter.isActive:
-			self._activeRecognitionSequence += 1
-			self._taskCues.stop(self._recognitionCue)
-			log.info("Cancelling active streaming speech presenter without active recognition thread.")
-			self._streamingSpeechPresenter.cancel()
-			return True
 		return False
+
+	def _cancelCurrentRecognition(self, isUserInitiated: bool = True) -> bool:
+		return self._cancelRecognitionOutsideRuntime(isUserInitiated) or self._recognitionRuntime.cancel(
+			isUserInitiated
+		)
+
+	def _getCurrentEngine(self, currentEngineType: str) -> Any | None:
+		return self._recognitionRuntime.getCurrentEngine(currentEngineType)
+
+	def _showRecognitionResultDocument(self, result: RecognitionResult, autoSayAll: bool = False) -> None:
+		self._recognitionRuntime.showRecognitionResultDocument(result, autoSayAll)
+
+	def _isScreenCurtainRunning(self) -> bool:
+		return self._recognitionRuntime.isScreenCurtainRunning()
+
+	def _makeRecognitionCallback(self, recognitionSequence: int, streamResult: bool) -> Callable[[Any], None]:
+		return self._recognitionRuntime.makeRecognitionCallback(recognitionSequence, streamResult)
+
+	def executeRecognition(
+		self,
+		gesture: "inputCore.InputGesture",
+		currentSource: str,
+		currentEngineType: str,
+		simpleText: bool,
+	) -> None:
+		self._recognitionRuntime.execute(gesture, currentSource, currentEngineType, simpleText)
 
 	@script(
 		# Translators: Describes the command to cancel an ongoing recognition task.
@@ -862,337 +703,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		newValue = availableValues[nextIndex]
 		configSection[configName] = newValue
 		return configList[nextIndex][1]  # Return the description
-
-	@classmethod
-	def _getImageFromClipboard(cls) -> Image.Image | None:
-		"""
-		Retrieve an image from the clipboard.
-
-		This function handles raw image data, copied image files, and file paths in text format.
-		:returns: A PIL Image object on success, or None on failure.
-		"""
-		try:
-			# This can return a PIL Image object or a list of file paths.
-			clipboardContent = ImageGrab.grabclipboard()
-			# Case 1: Raw image data in the clipboard.
-			if isinstance(clipboardContent, Image.Image):
-				log.debug("Found raw image data in clipboard.")
-				return clipboardContent.convert("RGB")
-			# Case 2: One or more files copied to the clipboard.
-			if isinstance(clipboardContent, list) and clipboardContent:
-				log.debug(f"Found file paths in clipboard from ImageGrab: {clipboardContent}")
-				try:
-					# If ImageGrab returns a file list, we prioritize it and consider the task done.
-					return Image.open(clipboardContent[0]).convert("RGB")
-				except (OSError, FileNotFoundError):
-					log.warning(f"File from clipboard is not a valid image: {clipboardContent[0]}")
-					# If the file path from ImageGrab is invalid, we assume there's no valid image.
-					return None
-		except Exception:
-			# ImageGrab.grabclipboard can sometimes fail unexpectedly.
-			# We log the error and proceed to check for a text path as a fallback.
-			log.debug(
-				"ImageGrab.grabclipboard failed, will try reading clipboard as text path.",
-				exc_info=True,
-			)
-		# Case 3: A file path as plain text in the clipboard.
-		try:
-			path = api.getClipData()
-			if path and os.path.isfile(path):
-				log.debug(f"Found a text file path in clipboard: {path}")
-				try:
-					return Image.open(path).convert("RGB")
-				except OSError:
-					log.warning(f"Text path points to a non-image file: {path}")
-		except OSError:
-			# Expected when clipboard contains file(s), not text. Safely ignore.
-			log.debug("api.getClipData() failed, likely due to non-text clipboard format.")
-		return None
-
-	def _getImageFromClipboardSource(self) -> tuple[RecogImageInfo, Image.Image] | None:
-		"""
-		Gets an image from the clipboard and prepares it for recognition.
-
-		:returns: A tuple of (RecogImageInfo, PIL.Image.Image) or None on failure.
-		"""
-		recognizeImage = self._getImageFromClipboard()
-		if not recognizeImage:
-			# Translators: Reported when attempting to recognize a clipboard image, but no image is found.
-			ui.message(_("No image in clipboard"))
-			return None
-		imageInfo = RecogImageInfo(0, 0, recognizeImage.width, recognizeImage.height, 1)
-		return imageInfo, recognizeImage
-
-	def _getImageFromSource(
-		self,
-		currentSource: str,
-		recognizer: "ContentRecognizer",
-	) -> tuple[RecogImageInfo, Image.Image] | None:
-		"""
-		Dispatches the image acquisition based on the source type.
-
-		:param currentSource: The configured source type (e.g., "clipboardImage").
-		:param recognizer: The content recognizer instance.
-		:returns: A tuple of (RecogImageInfo, PIL.Image.Image) or None on failure.
-		"""
-		sourceHandlers = {
-			"clipboardImage": self._getImageFromClipboardSource,
-			"navigatorObject": functools.partial(
-				self._prepareImageFromObject,
-				api.getNavigatorObject,
-				recognizer,
-			),
-			"foreGroundWindow": functools.partial(
-				self._prepareImageFromObject,
-				api.getForegroundObject,
-				recognizer,
-			),
-			"wholeDesktop": functools.partial(self._prepareImageFromObject, api.getDesktopObject, recognizer),
-		}
-		handler = sourceHandlers.get(currentSource)
-		if handler:
-			return handler()
-		log.warning(f"Unknown image source type: {currentSource}")
-		return None
-
-	def _getCurrentEngine(self, currentEngineType: str) -> Any | None:
-		"""
-		Retrieves the currently configured engine instance based on the engine type.
-
-		:param currentEngineType: The type of engine to retrieve ("OCR" or "ImageDescriber").
-		:returns: An engine instance or None if not configured.
-		"""
-		if currentEngineType == "OCR":
-			return self.ocrHandler.getCurrentEngine()
-		elif currentEngineType == "ImageDescriber":
-			return self.descHandler.getCurrentEngine()
-		return None
-
-	def _showRecognitionResultDocument(
-		self,
-		result: RecognitionResult,
-		autoSayAll: bool = False,
-	) -> None:
-		"""
-		Shows a recognition result in NVDA's virtual document UI.
-
-		:param result: The recognition result to show.
-		:param autoSayAll: True to start say-all after the result document receives focus.
-		"""
-		resultObjectClass = _AutoSayAllRecogResultNVDAObject if autoSayAll else recogUi.RecogResultNVDAObject
-		displayObject = resultObjectClass(result=result)
-		displayObject.setFocus()
-
-	def _isScreenCurtainRunning(self) -> bool:
-		from screenCurtain import screenCurtain as screenCurtainController
-
-		return screenCurtainController is not None and screenCurtainController.enabled
-
-	def _onRecognitionResult(self, result: Any) -> None:
-		"""
-		Handle results and exceptions from the worker thread. This runs on the main thread.
-
-		:param result: The result from the recognition task, which can be a RecognitionResult or an Exception.
-		"""
-		try:
-			if isinstance(result, Exception):
-				if isinstance(result, CancellationError):
-					if getattr(result.event, "is_user_initiated", True):
-						# Translators: Reported when a recognition task is cancelled by the user.
-						ui.message(_("Recognition cancelled"))
-					return
-				elif isinstance(result, AuthenticationError):
-					# Translators: An error message for authentication failures. The placeholder is the specific error.
-					message = _("Authentication failed: {}").format(result)
-				elif isinstance(result, NetworkError):
-					# Translators: An error message for network issues. The placeholder is the specific error.
-					message = _("Network error: {}").format(result)
-				elif isinstance(result, ApiError):
-					# Translators: A generic error message for recognition failures from the API.
-					message = _("Recognition failed: {}").format(result)
-				else:
-					log.error("An unexpected error occurred during recognition.", exc_info=result)
-					# Translators: A message for an unexpected error during recognition.
-					message = _("Recognition failed with an unexpected error.")
-				ui.message(message)
-				return
-			if not isinstance(result, RecognitionResult):
-				log.error(f"Received an unknown result type from recognition: {type(result)}")
-				# Translators: An error message for an unknown result type.
-				ui.message(_("Recognition returned an unknown result type."))
-				return
-			historyEntry = recogHistory.getAttachedEntry(result)
-			if historyEntry:
-				recogHistory.addEntry(historyEntry, result=result)
-			conf = config.conf["visAwareGeneral"]
-			if conf["copyToClipboard"]:
-				api.copyToClip(result.text, notify=True)
-			if isinstance(result, SimpleTextResult):
-				forceVirtualDocument = getattr(result, "forceVirtualDocument", False)
-				if getattr(result, "forceBrowseableMessage", False) or (
-					conf["useBrowseableMessage"] and not forceVirtualDocument
-				):
-					# Translators: The title for the browsable message showing the recognition result.
-					showMarkdownBrowseableMessage(result.text, title=_("Recognition result"))
-				elif forceVirtualDocument:
-					self._showRecognitionResultDocument(
-						result,
-						autoSayAll=conf["autoSayAllOnResult"],
-					)
-				else:
-					ui.message(result.text)
-			else:
-				# Use the standard NVDA UI for displaying navigable results.
-				self._showRecognitionResultDocument(
-					result,
-					autoSayAll=conf["autoSayAllOnResult"],
-				)
-		finally:
-			log.debug("Recognition task completed. Clearing active engine reference.")
-			self._activeEngine = None
-
-	def _onStreamingRecognitionResult(self, result: Any) -> None:
-		"""
-		Handle streaming recognition events. This runs on the main thread.
-
-		:param result: A streaming event or an exception from the worker thread.
-		"""
-		if isinstance(result, StreamText):
-			if result.replace:
-				self._streamingSpeechPresenter.cancel()
-				self._streamingSpeechPresenter.start()
-			self._streamingSpeechPresenter.addText(result.text)
-			return
-		if isinstance(result, StreamFinished):
-			try:
-				if result.historyEntry:
-					recogHistory.addEntry(result.historyEntry, text=result.text)
-				finalMessage = None
-				if result.incompleteReason:
-					# Translators: Reported after partial streaming output when the service stopped before completing.
-					finalMessage = _("Recognition was interrupted. The result may be incomplete.")
-				self._streamingSpeechPresenter.finish(finalMessage=finalMessage)
-				if config.conf["visAwareGeneral"]["copyToClipboard"]:
-					api.copyToClip(result.text)
-			finally:
-				log.debug("Streaming recognition task completed. Clearing active engine reference.")
-				self._activeEngine = None
-			return
-		if isinstance(result, Exception):
-			log.warning("Streaming recognition result received exception.", exc_info=result)
-			self._streamingSpeechPresenter.cancel()
-			self._onRecognitionResult(result)
-			return
-		log.error(f"Received an unknown streaming result type: {type(result)}")
-		# Translators: An error message for an unknown result type.
-		ui.message(_("Recognition returned an unknown result type."))
-		self._activeEngine = None
-
-	def _makeRecognitionCallback(
-		self,
-		recognitionSequence: int,
-		streamResult: bool,
-	) -> Callable[[Any], None]:
-		"""
-		Creates a callback that ignores results from superseded recognition tasks.
-
-		:param recognitionSequence: The sequence number for the task being started.
-		:param streamResult: Whether the task will deliver streaming events.
-		:returns: A callback suitable for ContentRecognizer.recognize.
-		"""
-		cueHandle = self._recognitionCue
-
-		def onResult(result: Any) -> None:
-			if recognitionSequence != self._activeRecognitionSequence:
-				self._taskCues.stop(cueHandle)
-				log.debug(
-					"Ignoring result from a superseded recognition task. "
-					f"callbackSequence={recognitionSequence}, activeSequence={self._activeRecognitionSequence}, "
-					f"streamResult={streamResult}, resultType={type(result)}",
-				)
-				return
-			if not streamResult or not isinstance(result, StreamText) or result.text.strip():
-				self._taskCues.stop(cueHandle)
-			if streamResult:
-				self._onStreamingRecognitionResult(result)
-			else:
-				self._onRecognitionResult(result)
-
-		return onResult
-
-	def executeRecognition(
-		self,
-		gesture: "inputCore.InputGesture",
-		currentSource: str,
-		currentEngineType: str,
-		simpleText: bool,
-	) -> None:
-		"""
-		Orchestrates the recognition process from initiation to result handling.
-
-		:param gesture: The input gesture that triggered the recognition.
-		:param currentSource: The configured source of the image.
-		:param currentEngineType: The configured type of engine to use.
-		:param simpleText: Whether to request a simple text result.
-		"""
-		try:
-			self._cancelCurrentRecognition(isUserInitiated=False)
-			self._taskCues.stop(self._recognitionCue)
-			self._recognitionCue = None
-			engine = self._getCurrentEngine(currentEngineType)
-			self._activeRecognitionSequence += 1
-			recognitionSequence = self._activeRecognitionSequence
-			self._activeEngine = engine
-			if not engine or engine.name == "empty":
-				# Translators: A message indicating that no recognition engine is configured.
-				ui.message(_("No recognition engine is configured."))
-				self._activeEngine = None
-				return
-			if (
-				currentSource != "clipboardImage"
-				and self._isScreenCurtainRunning()
-				and not isScreenCurtainCaptureSupported()
-			):
-				# Translators: A message shown when trying to recognize with screen curtain enabled.
-				ui.message(_("Please disable screen curtain before recognition."))
-				self._activeEngine = None
-				return
-			conf = config.conf["visAwareGeneral"]
-			shouldStream = (
-				simpleText
-				and not conf["useBrowseableMessage"]
-				and bool(getattr(engine, "supportsStreaming", False))
-				and bool(getattr(engine, "isStreaming", False))
-			)
-			engine.textResult = simpleText
-			engine.streamResult = shouldStream
-			# The unified image acquisition process
-			imageData = self._getImageFromSource(currentSource, engine)
-			if not imageData:
-				engine.streamResult = False
-				self._activeEngine = None
-				return
-			imageInfo, recognizeImage = imageData
-			pixels = recognizeImage.tobytes("raw", "BGRX")
-			# Translators: Reporting when content recognition (e.g. OCR) begins.
-			ui.message(_("Recognizing"))
-			self._recognitionCue = self._taskCues.start()
-			if shouldStream:
-				self._streamingSpeechPresenter.start()
-			onResult = self._makeRecognitionCallback(recognitionSequence, shouldStream)
-			engine.recognize(pixels, imageInfo, onResult)
-		except Exception as e:
-			self._taskCues.stop(self._recognitionCue)
-			log.error(f"Error preparing for recognition: {e!r}", exc_info=True)
-			if "shouldStream" in locals() and shouldStream:
-				self._streamingSpeechPresenter.cancel()
-			if "engine" in locals() and engine:
-				engine.streamResult = False
-			# Translators: A generic error message before recognition starts.
-			ui.message(
-				_("An error occurred before starting recognition. Please check your settings and try again."),
-			)
-			self._activeEngine = None
 
 	def _cycleEngine(self, handler: "AbstractEngineHandler") -> None:
 		"""

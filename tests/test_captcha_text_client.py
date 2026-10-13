@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import requests
 
-from test_network import load_network_module
+from tests.test_network import load_network_module
 
 
 class _FakeResponse:

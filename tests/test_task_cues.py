@@ -265,23 +265,42 @@ class TaskCuesTestCase(unittest.TestCase):
 				"config": types.SimpleNamespace(conf={"visAwareGeneral": {"useBrowseableMessage": False}}),
 			},
 		)
+		runtimeCls = loadMethods(
+			"recognitionRuntime.py",
+			"RecognitionRuntime",
+			{"makeRecognitionCallback", "execute", "cancel", "terminate"},
+			{
+				"StreamText": streamText,
+				"log": self.log,
+				"ui": Mock(),
+				"_": lambda value: value,
+				"config": types.SimpleNamespace(conf={"visAwareGeneral": {"useBrowseableMessage": False}}),
+				"isScreenCurtainCaptureSupported": lambda: True,
+			},
+		)
 		plugin = cls()
-		plugin._taskCues = self.cues
-		plugin._recognitionCue = None
-		plugin._activeRecognitionSequence = 1
-		plugin._activeEngine = None
+		runtime = runtimeCls()
+		runtime._taskCues = self.cues
+		runtime._recognitionCue = None
+		runtime._activeRecognitionSequence = 1
+		runtime._activeEngine = None
+		runtime._terminated = False
+		runtime._cancelOtherTasks = lambda _isUserInitiated: False
+		plugin._recognitionRuntime = runtime
+		plugin._cancelRecognitionOutsideRuntime = lambda _isUserInitiated: False
 		plugin._stopAgent = lambda **_kwargs: False
 		plugin._autoRecognitionController = None
-		plugin._streamingSpeechPresenter = Mock(isActive=False)
-		plugin._onRecognitionResult = Mock()
-		plugin._onStreamingRecognitionResult = Mock()
+		runtime._streamingSpeechPresenter = Mock(isActive=False)
+		runtime._onRecognitionResult = Mock()
+		runtime._onStreamingRecognitionResult = Mock()
 		return plugin, streamText
 
 	def test_single_and_double_press_share_start_sound(self):
 		plugin, _ = self.makePlugin()
+		runtime = plugin._recognitionRuntime
 		engine = Mock(name="engine", supportsStreaming=False, _recognitionThread=None)
-		plugin._getCurrentEngine = lambda _kind: engine
-		plugin._getImageFromSource = lambda *_args: (object(), Mock())
+		runtime.getCurrentEngine = lambda _kind: engine
+		runtime.getImageFromSource = lambda *_args: (object(), Mock())
 		plugin.startRecognition = lambda gesture, simpleText: plugin.executeRecognition(
 			gesture,
 			"clipboardImage",
@@ -296,7 +315,8 @@ class TaskCuesTestCase(unittest.TestCase):
 
 	def test_manual_stream_stops_on_text_and_old_callback_cannot_stop_new_task(self):
 		plugin, streamText = self.makePlugin()
-		plugin._recognitionCue = self.cues.start()
+		runtime = plugin._recognitionRuntime
+		runtime._recognitionCue = self.cues.start()
 		callback = plugin._makeRecognitionCallback(1, True)
 		event = streamText()
 		event.text = " \n"
@@ -307,31 +327,41 @@ class TaskCuesTestCase(unittest.TestCase):
 		self.players[-1].stop.assert_called_once()
 		self.clock.advance(4000)
 		self.assertEqual([name for _, name in self.sounds], ["start", "waiting"])
-		plugin._activeRecognitionSequence = 2
-		plugin._recognitionCue = self.cues.start()
+		runtime._activeRecognitionSequence = 2
+		runtime._recognitionCue = self.cues.start()
 		callback(RuntimeError("old task"))
 		self.clock.advance(2000)
 		self.assertEqual(self.sounds[-1], (8000, "waiting"))
 
 	def test_manual_start_error_and_pending_result_cancellation_stop_waiting(self):
 		plugin, _ = self.makePlugin()
+		runtime = plugin._recognitionRuntime
 		engine = Mock(name="engine", supportsStreaming=False, _recognitionThread=None)
 		engine.recognize.side_effect = RuntimeError("start failed")
-		plugin._getCurrentEngine = lambda _kind: engine
-		plugin._getImageFromSource = lambda *_args: (object(), Mock())
+		runtime.getCurrentEngine = lambda _kind: engine
+		runtime.getImageFromSource = lambda *_args: (object(), Mock())
 		plugin.executeRecognition(None, "clipboardImage", "OCR", False)
 		self.clock.advance(3000)
 		self.assertEqual(self.sounds, [(0, "start")])
 		engine._recognitionThread = Mock()
 		engine._recognitionThread.is_alive.return_value = False
-		plugin._activeEngine = engine
-		plugin._recognitionCue = self.cues.start()
-		callback = plugin._makeRecognitionCallback(plugin._activeRecognitionSequence, False)
+		runtime._activeEngine = engine
+		runtime._recognitionCue = self.cues.start()
+		callback = plugin._makeRecognitionCallback(runtime._activeRecognitionSequence, False)
 		self.assertTrue(plugin._cancelCurrentRecognition())
 		callback(object())
 		self.clock.advance(3000)
-		plugin._onRecognitionResult.assert_not_called()
+		runtime._onRecognitionResult.assert_not_called()
 		self.assertEqual(self.sounds, [(0, "start"), (3000, "start")])
+
+	def test_terminated_runtime_ignores_pending_worker_result(self):
+		plugin, _ = self.makePlugin()
+		runtime = plugin._recognitionRuntime
+		runtime._activeRecognitionSequence = 1
+		callback = plugin._makeRecognitionCallback(1, False)
+		runtime.terminate()
+		callback(RuntimeError("late result"))
+		runtime._onRecognitionResult.assert_not_called()
 
 	def makeQuestionFrame(self):
 		thread = Mock()

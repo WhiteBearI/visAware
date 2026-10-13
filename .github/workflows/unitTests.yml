@@ -22,5 +22,5 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Run template tests via unittest
-        run: uv run python -m unittest discover -s tests/unit -v
+      - name: Run tests
+        run: uv run pytest -q tests
