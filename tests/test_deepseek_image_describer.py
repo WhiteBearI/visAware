@@ -183,6 +183,14 @@ def _install_stubs() -> list[dict]:
 		"addon.globalPlugins.visAware.deepseekModels",
 		"addon/globalPlugins/visAware/deepseekModels.py",
 	)
+	_load_module(
+		"addon.globalPlugins.visAware._modelSettings",
+		"addon/globalPlugins/visAware/_modelSettings.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware._openaiEngine",
+		"addon/globalPlugins/visAware/_openaiEngine.py",
+	)
 	module = _load_module(
 		"addon.globalPlugins.visAware.imageDescribers.deepseek",
 		"addon/globalPlugins/visAware/imageDescribers/deepseek.py",
@@ -354,6 +362,7 @@ class DeepSeekImageDescriberTestCase(unittest.TestCase):
 		engine = module.CustomContentRecognizer()
 
 		self.assertEqual(list(engine.availableModels), ["deepseek-flash"])
+		self.assertNotIn("KnownModelsMixin", [base.__name__ for base in type(engine).__mro__])
 		engine.model = "deepseek-v4-pro"
 		self.assertEqual(engine.model, "deepseek-flash")
 

@@ -23,7 +23,7 @@ from .decision import AGENT_ACTION_SCHEMA, AgentDecision, parseAgentDecision
 from .. import network
 from ..requestLogging import isVerboseDebugLoggingEnabled, redactForLog
 from ..exceptions import ApiError, AuthenticationError
-from ..openaiResponses import buildResponsesRequest
+from ..openaiResponses import ResponsesClient
 
 addonHandler.initTranslation()
 
@@ -62,13 +62,13 @@ class DeepSeekAgentClient:
 			"tools": [_buildAgentDecisionTool()],
 			"tool_choice": {"type": "function", "name": AGENT_DECISION_TOOL_NAME},
 		}
-		requestParams = buildResponsesRequest(self.apiKey, self.baseUrl, payload, timeout=REQUEST_TIMEOUT)
+		client = ResponsesClient(self.apiKey, self.baseUrl, network)
 		if isVerboseDebugLoggingEnabled():
+			requestParams = client.requestParams(payload, timeout=REQUEST_TIMEOUT)
 			log.debug(f"DeepSeek agent request params: {redactForLog(requestParams)}")
 		startTime = time.perf_counter()
-		response = network.sendRequest(**requestParams)
+		apiResult = client.create(payload, timeout=REQUEST_TIMEOUT)
 		duration = time.perf_counter() - startTime
-		apiResult = response.json()
 		log.info(
 			f"DeepSeek agent response completed: duration={duration:.2f}s, {_formatUsage(apiResult)}",
 		)

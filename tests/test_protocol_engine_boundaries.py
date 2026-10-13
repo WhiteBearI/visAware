@@ -74,6 +74,34 @@ def test_model_discovery_preserves_order_and_transport_controls(data):
 	assert kwargs["retry"] is False
 
 
+def test_responses_client_reuses_request_and_model_transport():
+	load_kimi_image_module()
+	module = _load_module(
+		"addon.globalPlugins.visAware.openaiResponses",
+		"addon/globalPlugins/visAware/openaiResponses.py",
+	)
+	calls = []
+	responses = iter(
+		[
+			SimpleNamespace(json=lambda: {"id": "response-1", "output": []}),
+			SimpleNamespace(json=lambda: {"data": [{"id": " z "}, {"id": "a"}, {"id": "z"}]}),
+		]
+	)
+	transport = SimpleNamespace(
+		sendRequest=lambda *args, **kwargs: calls.append((args, kwargs)) or next(responses),
+	)
+	client = module.ResponsesClient("secret", "https://api.example/v1", transport)
+
+	def checker():
+		pass
+
+	assert client.create({"model": "vision"}, timeout=7, cancelCheck=checker)["id"] == "response-1"
+	assert client.listModels(timeout=8, cancelCheck=checker) == ["a", "z"]
+	assert calls[0][1]["url"] == "https://api.example/v1/responses"
+	assert calls[0][1]["cancelCheck"] is checker
+	assert calls[1][0] == ("GET", "https://api.example/v1/models")
+
+
 @pytest.mark.parametrize("provider", ["kimi", "openai", "ollama"])
 @pytest.mark.parametrize("stored", [" old-model ", [" b ", "", "a", "b"]])
 def test_remembered_models_follow_engine_lifecycle_without_sharing_instances(provider, stored):
@@ -111,6 +139,10 @@ def test_remembered_models_follow_engine_lifecycle_without_sharing_instances(pro
 			load_kimi_agent_module()
 		else:
 			sys.modules["addon.globalPlugins.visAware.agent.actions"].NORMALIZED_SCALE = 1000
+			_load_module(
+				"addon.globalPlugins.visAware._openaiEngine",
+				"addon/globalPlugins/visAware/_openaiEngine.py",
+			)
 			_load_module(
 				"addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py"
 			)
@@ -387,6 +419,10 @@ def test_model_fetch_preserves_connection_and_model_edits(provider, edit, framew
 	else:
 		sys.modules["addon.globalPlugins.visAware.agent.actions"].NORMALIZED_SCALE = 1000
 		_load_module(
+			"addon.globalPlugins.visAware._openaiEngine",
+			"addon/globalPlugins/visAware/_openaiEngine.py",
+		)
+		_load_module(
 			"addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py"
 		)
 		monkeypatch.setitem(
@@ -478,6 +514,10 @@ def test_openai_model_fetch_reports_missing_key_through_action_error(framework, 
 		SimpleNamespace(BaseAgentEngine=imageModule.BaseDescriber),
 	)
 	sys.modules["addon.globalPlugins.visAware.agent.actions"].NORMALIZED_SCALE = 1000
+	_load_module(
+		"addon.globalPlugins.visAware._openaiEngine",
+		"addon/globalPlugins/visAware/_openaiEngine.py",
+	)
 	_load_module("addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py")
 	module = _load_module(
 		"addon.globalPlugins.visAware.agent.engines.openai",
@@ -485,7 +525,7 @@ def test_openai_model_fetch_reports_missing_key_through_action_error(framework, 
 	)
 	monkeypatch.setitem(sys.modules, "addon.globalPlugins.visAware.engineSettingsUI", framework.ui)
 	messages = []
-	monkeypatch.setattr(module.ui, "message", messages.append)
+	monkeypatch.setattr(sys.modules["ui"], "message", messages.append)
 	engine = module.AgentEngine()
 	engine.imageQuality = 90
 	parent = SimpleNamespace(

@@ -15,7 +15,7 @@ from logHandler import log
 
 from .. import network
 from ..exceptions import ApiError, AuthenticationError
-from ..openaiResponses import buildResponsesRequest
+from ..openaiResponses import ResponsesClient
 from .actions import JPEG_QUALITY, NORMALIZED_SCALE, AgentAction, Screenshot, formatScreenshotPromptContext
 from .decision import AgentDecision
 
@@ -87,10 +87,7 @@ class OpenAIAgentClient:
 		if self._previousResponseId:
 			payload["previous_response_id"] = self._previousResponseId
 		startTime = time.perf_counter()
-		response = network.sendRequest(
-			**buildResponsesRequest(self.apiKey, self.baseUrl, payload, timeout=60)
-		)
-		apiResult = response.json()
+		apiResult = ResponsesClient(self.apiKey, self.baseUrl, network).create(payload, timeout=60)
 		duration = time.perf_counter() - startTime
 		log.info(
 			"OpenAI agent response completed: "
@@ -128,23 +125,7 @@ class OpenAIAgentClient:
 			self._previousResponseId = responseId
 
 	def listModels(self) -> list[str]:
-		response = network.sendRequest(
-			"GET",
-			f"{self.baseUrl}/models",
-			headers={"Authorization": f"Bearer {self.apiKey}"},
-			timeout=30,
-		)
-		apiResult = response.json()
-		modelIds = set()
-		models = apiResult.get("data", [])
-		if not isinstance(models, list):
-			return []
-		for model in models:
-			if isinstance(model, dict) and isinstance(model.get("id"), str):
-				modelId = model["id"].strip()
-				if modelId:
-					modelIds.add(modelId)
-		return sorted(modelIds)
+		return ResponsesClient(self.apiKey, self.baseUrl, network).listModels()
 
 	def _buildPrompt(self, goal: str, screenshot: Screenshot, history: list[str]) -> str:
 		historyText = "\n".join(history[-MAX_HISTORY_ITEMS:]) if history else "None."

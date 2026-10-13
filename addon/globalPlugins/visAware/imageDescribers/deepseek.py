@@ -12,10 +12,10 @@ from typing import Any
 import addonHandler
 
 from .. import network
+from .._openaiEngine import OpenAICompatibleEngineMixin
 from ..deepseekModels import (
 	DEFAULT_DEEPSEEK_BASE_URL,
 	DEFAULT_DEEPSEEK_VISION_MODEL,
-	getDeepSeekVisionModelChoices,
 )
 from ..engineSettings import ChoiceEngineSetting, TextInputEngineSetting
 from ..exceptions import ApiError, AuthenticationError
@@ -32,7 +32,7 @@ MAX_COMPLETION_TOKENS = 2_048
 DEFAULT_DEEPSEEK_PROMPT = DEFAULT_IMAGE_DESCRIPTION_PROMPT
 
 
-class CustomContentRecognizer(BaseDescriber):
+class CustomContentRecognizer(OpenAICompatibleEngineMixin, BaseDescriber):
 	"""An image description engine that uses the DeepSeek Chat Completions API."""
 
 	name = "deepseek"
@@ -47,8 +47,8 @@ class CustomContentRecognizer(BaseDescriber):
 	isStreaming = False
 	uploadImageFormat = "JPEG"
 
-	_apiKey: str = ""
-	_baseUrl: str = DEFAULT_DEEPSEEK_BASE_URL
+	defaultBaseUrl = DEFAULT_DEEPSEEK_BASE_URL
+	defaultModel = DEFAULT_DEEPSEEK_VISION_MODEL
 	_model: str = DEFAULT_DEEPSEEK_VISION_MODEL
 	_prompt: str = DEFAULT_DEEPSEEK_PROMPT
 
@@ -84,33 +84,6 @@ class CustomContentRecognizer(BaseDescriber):
 		]
 
 	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value.strip()
-
-	@property
-	def baseUrl(self) -> str:
-		return self._baseUrl
-
-	@baseUrl.setter
-	def baseUrl(self, value: str) -> None:
-		self._baseUrl = value.strip().rstrip("/") or DEFAULT_DEEPSEEK_BASE_URL
-		if self.model not in getDeepSeekVisionModelChoices():
-			self._model = DEFAULT_DEEPSEEK_VISION_MODEL
-
-	@property
-	def model(self) -> str:
-		return self._model
-
-	@model.setter
-	def model(self, value: str) -> None:
-		value = value.strip()
-		self._model = value if value in self.availableModels else DEFAULT_DEEPSEEK_VISION_MODEL
-
-	@property
 	def prompt(self) -> str:
 		return self._prompt
 
@@ -119,7 +92,28 @@ class CustomContentRecognizer(BaseDescriber):
 		self._prompt = value.strip() or DEFAULT_DEEPSEEK_PROMPT
 
 	@property
+	def baseUrl(self) -> str:
+		return getattr(self, "_baseUrl", self.defaultBaseUrl)
+
+	@baseUrl.setter
+	def baseUrl(self, value: str) -> None:
+		self._baseUrl = value.strip().rstrip("/") or self.defaultBaseUrl
+		if self.model not in self.availableModels:
+			self._model = self.defaultModel
+
+	@property
+	def model(self) -> str:
+		return getattr(self, "_model", self.defaultModel)
+
+	@model.setter
+	def model(self, value: str) -> None:
+		value = value.strip()
+		self._model = value if value in self.availableModels else self.defaultModel
+
+	@property
 	def availableModels(self) -> dict:
+		from ..deepseekModels import getDeepSeekVisionModelChoices
+
 		return self.generateStringSettings(getDeepSeekVisionModelChoices())
 
 	@classmethod

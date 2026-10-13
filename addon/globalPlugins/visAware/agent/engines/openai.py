@@ -9,14 +9,8 @@ from __future__ import annotations
 from typing import Any
 
 import addonHandler
-import ui
-
 from ..._modelSettings import KnownModelsMixin
-from ...engineSettings import (
-	ButtonEngineSetting,
-	EditableChoiceEngineSetting,
-	TextInputEngineSetting,
-)
+from ..._openaiEngine import OpenAICompatibleEngineMixin
 from ..openai import (
 	DEFAULT_OPENAI_BASE_URL,
 	DEFAULT_OPENAI_MODEL,
@@ -28,74 +22,22 @@ from ..engine import BaseAgentEngine
 addonHandler.initTranslation()
 
 
-class AgentEngine(KnownModelsMixin, BaseAgentEngine):
+class AgentEngine(OpenAICompatibleEngineMixin, KnownModelsMixin, BaseAgentEngine):
 	"""OpenAI-backed computer-use agent engine."""
 
 	name = "openai"
 	# Translators: The description of the OpenAI Agent engine.
 	description = _("OpenAI")
 
-	_apiKey: str = ""
-	_baseUrl: str = DEFAULT_OPENAI_BASE_URL
-	_model: str = DEFAULT_OPENAI_MODEL
+	defaultBaseUrl = DEFAULT_OPENAI_BASE_URL
+	defaultModel = DEFAULT_OPENAI_MODEL
 
 	@property
 	def supportedSettings(self) -> list[Any]:
 		return [
-			TextInputEngineSetting(
-				name="apiKey",
-				# Translators: The label for the OpenAI API key used by the Agent.
-				displayNameWithAccelerator=_("API &key"),
-			),
-			TextInputEngineSetting(
-				name="baseUrl",
-				# Translators: The label for the OpenAI-compatible base URL used by the Agent.
-				displayNameWithAccelerator=_("Base &URL"),
-			),
-			ButtonEngineSetting(
-				name="fetchModels",
-				# Translators: The label for the button that fetches OpenAI model names.
-				displayNameWithAccelerator=_("&Fetch models"),
-			),
-			EditableChoiceEngineSetting(
-				name="model",
-				# Translators: The label for the OpenAI model used by the Agent.
-				displayNameWithAccelerator=_("&Model"),
-				optionsPropertyName="availableModels",
-			),
+			*self._openAICompatibleSettings(),
 			self._imageQualitySetting(),
 		]
-
-	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value.strip()
-
-	@property
-	def baseUrl(self) -> str:
-		return self._baseUrl
-
-	@baseUrl.setter
-	def baseUrl(self, value: str) -> None:
-		self._baseUrl = value.strip() or DEFAULT_OPENAI_BASE_URL
-
-	@property
-	def model(self) -> str:
-		return self._model
-
-	@model.setter
-	def model(self, value: str) -> None:
-		self._model = value.strip() or DEFAULT_OPENAI_MODEL
-
-	@property
-	def availableModels(self) -> dict:
-		models = {modelName: modelName for modelName in self._getKnownModels()}
-		if self.model and self.model not in models:
-			models[self.model] = self.model
-		return self.generateStringSettings(models)
 
 	@classmethod
 	def check(cls) -> bool:
@@ -113,32 +55,14 @@ class AgentEngine(KnownModelsMixin, BaseAgentEngine):
 			source="Agent OpenAI engine settings",
 		)
 
-	def fetchModelsChanger(self, evt: Any) -> None:
-		from ...engineSettingsUI import runSettingsAction
-
-		evt.Skip()
+	def _fetchModelNames(self, apiKey: str | None = None, baseUrl: str | None = None) -> list[str]:
 		settings = self._clientSettings()
-		key = (self.apiKey, self.baseUrl)
-		# Translators: Reported while fetching the OpenAI model list.
-		ui.message(_("Fetching OpenAI model list"))
-
-		def onSuccess(modelNames: list[str]) -> None:
-			if not modelNames:
-				# Translators: Reported when OpenAI returns no models.
-				ui.message(_("No OpenAI models were found."))
-				return
-			self._setKnownModels(modelNames)
-			if not self.model:
-				self.model = modelNames[0]
-			# Translators: Reported after fetching OpenAI models. {count} is the number of models.
-			ui.message(_("OpenAI models loaded: {count}").format(count=len(modelNames)))
-
-		runSettingsAction(
-			evt.GetEventObject(),
-			self,
-			lambda: OpenAIAgentClient(settings).listModels(),
-			onSuccess,
-			# Translators: Reported when fetching OpenAI models fails. {message} is the error message.
-			lambda message: ui.message(_("Could not fetch OpenAI models: {message}").format(message=message)),
-			lambda: key == (self.apiKey, self.baseUrl),
-		)
+		if apiKey is not None or baseUrl is not None:
+			settings = OpenAIAgentSettings(
+				apiKey=apiKey if apiKey is not None else settings.apiKey,
+				baseUrl=baseUrl if baseUrl is not None else settings.baseUrl,
+				model=settings.model,
+				imageQuality=settings.imageQuality,
+				source=settings.source,
+			)
+		return OpenAIAgentClient(settings).listModels()
