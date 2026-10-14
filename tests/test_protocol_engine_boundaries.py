@@ -210,6 +210,14 @@ def _loadGoogleEngine(role):
 		"addon.globalPlugins.visAware.geminiGenerateContent",
 		"addon/globalPlugins/visAware/geminiGenerateContent.py",
 	)
+	_load_module(
+		"addon.globalPlugins.visAware._modelSettings",
+		"addon/globalPlugins/visAware/_modelSettings.py",
+	)
+	_load_module(
+		"addon.globalPlugins.visAware._geminiEngine",
+		"addon/globalPlugins/visAware/_geminiEngine.py",
+	)
 	path = "contentRecognizers/geminiOCR" if role == "ocr" else f"imageDescribers/{role}"
 	module = _load_module(
 		f"addon.globalPlugins.visAware.{path.replace('/', '.')}", f"addon/globalPlugins/visAware/{path}.py"
@@ -237,6 +245,41 @@ def test_generate_content_role_requests_keep_headers_and_payload(role):
 	elif role == "gemma":
 		assert "systemInstruction" in params["json"]
 		assert params["json"]["generationConfig"]["responseMimeType"] == "application/json"
+
+
+def test_gemini_model_discovery_filters_models_by_family_and_protocol(monkeypatch):
+	_loadGoogleEngine("gemini")
+	module = sys.modules["addon.globalPlugins.visAware._geminiEngine"]
+	responsePayload = {
+		"models": [
+			{"name": "models/gemini-4-argon", "supportedGenerationMethods": ["generateContent"]},
+			{
+				"name": "models/gemini-3.1-flash-lite-preview",
+				"supportedGenerationMethods": ["generateContent"],
+			},
+			{"name": "models/gemini-3.1-flash-lite", "supportedGenerationMethods": ["generateContent"]},
+			{
+				"name": "models/gemini-2.5-flash-image-preview",
+				"supportedGenerationMethods": ["generateContent"],
+			},
+			{
+				"name": "models/gemini-2.5-flash-native-audio-preview",
+				"supportedGenerationMethods": ["generateContent"],
+			},
+			{"name": "models/gemma-4-31b-it", "supportedGenerationMethods": ["generateContent"]},
+			{"name": "models/gemma-3-1b-it", "supportedGenerationMethods": ["generateContent"]},
+			{"name": "models/gemini-embedding-001", "supportedGenerationMethods": ["embedContent"]},
+			{"name": "models/gemini-4-argon", "supportedGenerationMethods": ["generateContent"]},
+		],
+	}
+	monkeypatch.setattr(
+		module.network,
+		"sendRequest",
+		lambda *args, **kwargs: SimpleNamespace(json=lambda: responsePayload),
+	)
+
+	assert module.listGeminiModelNames("key") == ["gemini-4-argon", "gemini-3.1-flash-lite"]
+	assert module.listGeminiModelNames("key", "gemma") == ["gemma-4-31b-it"]
 
 
 @pytest.mark.parametrize("role,stream", [("gemini", False), ("gemini", True), ("gemma", False)])

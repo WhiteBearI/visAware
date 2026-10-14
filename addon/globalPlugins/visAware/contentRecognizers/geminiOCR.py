@@ -11,10 +11,10 @@ import addonHandler
 from logHandler import log
 from PIL import Image
 
-from ..engineSettings import ChoiceEngineSetting, TextInputEngineSetting
+from .._geminiEngine import GeminiEngineMixin
 from ..exceptions import ApiError, AuthenticationError
 from ..geminiGenerateContent import buildGenerateContentRequest
-from ..geminiModels import DEFAULT_GEMINI_MODEL, getGeminiLowLatencyThinkingConfig, getGeminiModelChoices
+from ..geminiModels import DEFAULT_GEMINI_MODEL, getGeminiLowLatencyThinkingConfig
 from ..recogHandler import BaseRecognizer, RecognitionRequest
 
 addonHandler.initTranslation()
@@ -84,7 +84,7 @@ OCR_PROMPT = (
 )
 
 
-class CustomContentRecognizer(BaseRecognizer):
+class CustomContentRecognizer(GeminiEngineMixin, BaseRecognizer):
 	"""Recognizes text using Gemini structured JSON output."""
 
 	name = "geminiOCR"
@@ -96,7 +96,6 @@ class CustomContentRecognizer(BaseRecognizer):
 	uploadImageFormat = "JPEG"
 	isStreaming = False
 
-	_apiKey: str = ""
 	_model: str = DEFAULT_GEMINI_MODEL
 	_uploadedImageSize: tuple[int, int] | None = None
 
@@ -108,27 +107,9 @@ class CustomContentRecognizer(BaseRecognizer):
 		:returns: A list of `EngineSetting` objects.
 		"""
 		return [
-			TextInputEngineSetting(
-				name="apiKey",
-				# Translators: The label for the text field to enter the Gemini API Key.
-				displayNameWithAccelerator=_("API &key"),
-			),
-			ChoiceEngineSetting(
-				name="model",
-				# Translators: The label for a setting to select the Gemini model.
-				displayNameWithAccelerator=_("&Model"),
-				optionsPropertyName="availableModels",
-			),
+			*self._geminiModelSettings(),
 			self.autoRecognitionModelSetting(),
 		]
-
-	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value
 
 	@property
 	def model(self) -> str:
@@ -140,15 +121,6 @@ class CustomContentRecognizer(BaseRecognizer):
 			self._model = value
 		else:
 			self._model = DEFAULT_GEMINI_MODEL
-
-	@property
-	def availableModels(self) -> dict:
-		"""
-		Provides the items for the 'model' choice control in the settings UI.
-
-		:returns: A dictionary of model IDs to display names.
-		"""
-		return self.generateStringSettings(getGeminiModelChoices())
 
 	@classmethod
 	def check(cls) -> bool:

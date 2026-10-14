@@ -11,9 +11,19 @@ import addonHandler
 addonHandler.initTranslation()
 
 DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
+DEFAULT_GEMINI_AGENT_MODEL = "gemini-3.8-flash"
 DEFAULT_GEMINI_MEDIA_RESOLUTION = "MEDIA_RESOLUTION_HIGH"
 
+# Google documents these models as supporting the Interactions computer-use tool.
+GEMINI_COMPUTER_USE_MODELS = (
+	"gemini-4-argon",
+	"gemini-3.8-flash",
+	"gemini-3.5-flash-lite",
+	"gemini-3-flash-preview",
+)
+
 _GEMINI_3_THINKING_LEVELS = {
+	"gemini-4-argon": "low",
 	"gemini-3.8-flash": "low",
 	"gemini-3.7-flash": "low",
 	"gemini-3.6-flash": "medium",
@@ -36,6 +46,8 @@ def getGeminiModelChoices() -> OrderedDict[str, str]:
 	"""
 	return OrderedDict(
 		{
+			# Translators: The display name for a Gemini model preset.
+			"gemini-4-argon": _("Gemini 4 Argon (latest, highest quality)"),
 			# Translators: The display name for a Gemini model preset.
 			"gemini-3.8-flash": _("Gemini 3.8 Flash (latest)"),
 			# Translators: The display name for a Gemini model preset.
@@ -66,21 +78,7 @@ def getGeminiModelChoices() -> OrderedDict[str, str]:
 
 def getGeminiAgentModelChoices() -> OrderedDict[str, str]:
 	modelChoices = getGeminiModelChoices()
-	return OrderedDict(
-		(model, modelChoices[model])
-		for model in (
-			"gemini-3.8-flash",
-			"gemini-3.7-flash",
-			"gemini-3.6-flash",
-			"gemini-3.5-flash-lite",
-			"gemini-3.5-flash",
-			"gemini-flash-latest",
-			"gemini-3-flash-preview",
-			"gemini-3.1-flash-lite",
-			"gemini-flash-lite-latest",
-			"gemini-2.5-flash-lite",
-		)
-	)
+	return OrderedDict((model, modelChoices[model]) for model in GEMINI_COMPUTER_USE_MODELS)
 
 
 def getGeminiMediaResolutionChoices() -> OrderedDict[str, str]:

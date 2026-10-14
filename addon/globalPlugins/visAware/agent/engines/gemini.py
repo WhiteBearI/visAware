@@ -10,28 +10,29 @@ from typing import Any
 
 import addonHandler
 
-from ...engineSettings import ChoiceEngineSetting, TextInputEngineSetting
+from ...engineSettings import ChoiceEngineSetting
 from ...geminiModels import (
+	DEFAULT_GEMINI_AGENT_MODEL,
 	DEFAULT_GEMINI_MEDIA_RESOLUTION,
-	DEFAULT_GEMINI_MODEL,
+	GEMINI_COMPUTER_USE_MODELS,
 	getGeminiAgentModelChoices,
 	getGeminiMediaResolutionChoices,
 )
+from ..._geminiEngine import GeminiEngineMixin
 from ..gemini import GeminiAgentClient, GeminiAgentSettings
 from ..engine import BaseAgentEngine
 
 addonHandler.initTranslation()
 
 
-class AgentEngine(BaseAgentEngine):
+class AgentEngine(GeminiEngineMixin, BaseAgentEngine):
 	"""Gemini-backed computer-use agent engine."""
 
 	name = "gemini"
 	# Translators: The description of the Google Gemini Agent engine.
 	description = _("Google Gemini")
 
-	_apiKey: str = ""
-	_model: str = DEFAULT_GEMINI_MODEL
+	_model: str = DEFAULT_GEMINI_AGENT_MODEL
 	_mediaResolution: str = DEFAULT_GEMINI_MEDIA_RESOLUTION
 
 	@property
@@ -42,17 +43,7 @@ class AgentEngine(BaseAgentEngine):
 		:returns: A list of engine setting objects.
 		"""
 		return [
-			TextInputEngineSetting(
-				name="apiKey",
-				# Translators: The label for the Gemini API key used by the Agent.
-				displayNameWithAccelerator=_("API &key"),
-			),
-			ChoiceEngineSetting(
-				name="model",
-				# Translators: The label for the Gemini model used by the Agent.
-				displayNameWithAccelerator=_("&Model"),
-				optionsPropertyName="availableModels",
-			),
+			*self._geminiModelSettings(),
 			ChoiceEngineSetting(
 				name="mediaResolution",
 				# Translators: The label for the Gemini media resolution used by the Agent.
@@ -63,14 +54,6 @@ class AgentEngine(BaseAgentEngine):
 		]
 
 	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value
-
-	@property
 	def model(self) -> str:
 		return self._model
 
@@ -79,7 +62,7 @@ class AgentEngine(BaseAgentEngine):
 		if value in self.availableModels:
 			self._model = value
 		else:
-			self._model = DEFAULT_GEMINI_MODEL
+			self._model = DEFAULT_GEMINI_AGENT_MODEL
 
 	@property
 	def mediaResolution(self) -> str:
@@ -89,15 +72,6 @@ class AgentEngine(BaseAgentEngine):
 	def mediaResolution(self, value: str) -> None:
 		if value in self.availableMediaResolutions:
 			self._mediaResolution = value
-
-	@property
-	def availableModels(self) -> dict:
-		"""
-		Provides model choices for the Agent engine settings.
-
-		:returns: A dictionary of model IDs to display names.
-		"""
-		return self.generateStringSettings(getGeminiAgentModelChoices())
 
 	@property
 	def availableMediaResolutions(self) -> dict:
@@ -128,3 +102,9 @@ class AgentEngine(BaseAgentEngine):
 				source="Agent Gemini engine settings",
 			),
 		)
+
+	def _getStaticModelChoices(self):
+		return getGeminiAgentModelChoices()
+
+	def _fetchModelNames(self, apiKey: str | None = None) -> list[str]:
+		return [model for model in super()._fetchModelNames(apiKey) if model in GEMINI_COMPUTER_USE_MODELS]

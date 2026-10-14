@@ -10,6 +10,7 @@ from typing import List, Any
 
 from .. import network
 from ..conversation import QuestionStreamFinished, QuestionStreamText
+from .._geminiEngine import GeminiEngineMixin
 from ..engineSettings import BooleanEngineSetting, ChoiceEngineSetting, TextInputEngineSetting
 from ..exceptions import ApiError, AuthenticationError, StreamIncompleteError
 from ..geminiGenerateContent import (
@@ -28,13 +29,12 @@ from ..geminiModels import (
 	DEFAULT_GEMINI_MEDIA_RESOLUTION,
 	DEFAULT_GEMINI_MODEL,
 	getGeminiMediaResolutionChoices,
-	getGeminiModelChoices,
 )
 
 addonHandler.initTranslation()
 
 
-class CustomContentRecognizer(BaseDescriber):
+class CustomContentRecognizer(GeminiEngineMixin, BaseDescriber):
 	"""An image description engine that uses the Google Gemini."""
 
 	name = "gemini"
@@ -51,7 +51,6 @@ class CustomContentRecognizer(BaseDescriber):
 	uploadImageFormat = "JPEG"
 
 	# --- Engine Default Settings ---
-	_apiKey: str = ""
 	_useStreaming: bool = False
 	_model: str = DEFAULT_GEMINI_MODEL
 	_mediaResolution: str = DEFAULT_GEMINI_MEDIA_RESOLUTION
@@ -67,21 +66,11 @@ class CustomContentRecognizer(BaseDescriber):
 		:returns: A list of `EngineSetting` objects.
 		"""
 		return [
-			TextInputEngineSetting(
-				name="apiKey",
-				# Translators: The label for the text field to enter the Gemini API Key.
-				displayNameWithAccelerator=_("API &key"),
-			),
+			*self._geminiModelSettings(),
 			BooleanEngineSetting(
 				"useStreaming",
 				# Translators: The label for an engine setting to enable streaming output.
 				_("&Enable streaming output (if available)"),
-			),
-			ChoiceEngineSetting(
-				name="model",
-				# Translators: The label for a setting to select the Gemini model.
-				displayNameWithAccelerator=_("&Model"),
-				optionsPropertyName="availableModels",
 			),
 			self.autoRecognitionModelSetting(),
 			ChoiceEngineSetting(
@@ -100,14 +89,6 @@ class CustomContentRecognizer(BaseDescriber):
 			),
 			self.autoRecognitionPromptSetting(),
 		]
-
-	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value
 
 	@property
 	def useStreaming(self) -> bool:
@@ -150,15 +131,6 @@ class CustomContentRecognizer(BaseDescriber):
 	def mediaResolution(self, value: str) -> None:
 		if value in self.availableMediaResolutions:
 			self._mediaResolution = value
-
-	@property
-	def availableModels(self) -> dict:
-		"""
-		Provides the items for the 'model' choice control in the settings UI.
-
-		:returns: A dictionary of model IDs to display names.
-		"""
-		return self.generateStringSettings(getGeminiModelChoices())
 
 	@property
 	def availableMediaResolutions(self) -> dict:

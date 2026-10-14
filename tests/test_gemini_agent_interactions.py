@@ -17,6 +17,17 @@ class _FakeResponse:
 		return self._payload
 
 
+def _load_module(moduleName: str, relativePath: str):
+	modulePath = Path(__file__).resolve().parents[1] / relativePath
+	spec = importlib.util.spec_from_file_location(moduleName, modulePath)
+	if spec is None or spec.loader is None:
+		raise RuntimeError(f"Failed to load {relativePath}")
+	module = importlib.util.module_from_spec(spec)
+	sys.modules[moduleName] = module
+	spec.loader.exec_module(module)
+	return module
+
+
 @dataclass
 class _BoundWindow:
 	hwnd: int = 1
@@ -141,11 +152,76 @@ def load_gemini_models_module():
 	return module
 
 
+def load_gemini_engine_module():
+	load_gemini_module()
+	settingsModule = types.ModuleType("addon.globalPlugins.visAware.engineSettings")
+
+	class _Setting:
+		def __init__(self, name, *args, **kwargs):
+			self.name = name
+			self.refreshSettingsOnChange = kwargs.get("refreshSettingsOnChange", False)
+
+	settingsModule.ButtonEngineSetting = _Setting
+	settingsModule.ChoiceEngineSetting = settingsModule.ButtonEngineSetting
+	settingsModule.TextInputEngineSetting = settingsModule.ButtonEngineSetting
+	sys.modules[settingsModule.__name__] = settingsModule
+	_load_module(
+		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py"
+	)
+	_load_module(
+		"addon.globalPlugins.visAware._geminiEngine", "addon/globalPlugins/visAware/_geminiEngine.py"
+	)
+	baseModule = types.ModuleType("addon.globalPlugins.visAware.agent.engine")
+	baseModule.BaseAgentEngine = type(
+		"BaseAgentEngine",
+		(),
+		{
+			"configSectionName": "visAwareAgent",
+			"generateStringSettings": staticmethod(lambda values: values),
+			"_imageQualitySetting": staticmethod(lambda: _Setting("imageQuality")),
+		},
+	)
+	sys.modules[baseModule.__name__] = baseModule
+	return _load_module(
+		"addon.globalPlugins.visAware.agent.engines.gemini",
+		"addon/globalPlugins/visAware/agent/engines/gemini.py",
+	)
+
+
 class GeminiAgentInteractionsTestCase(unittest.TestCase):
+	def test_agent_uses_only_documented_computer_use_models_for_discovery(self) -> None:
+		module = load_gemini_engine_module()
+		baseFetch = module.GeminiEngineMixin._fetchModelNames
+		module.GeminiEngineMixin._fetchModelNames = lambda self, apiKey=None: [
+			"gemini-3.8-flash",
+			"gemini-3.6-flash",
+			"gemini-4-argon",
+			"gemma-4-31b-it",
+		]
+		try:
+			engine = module.AgentEngine()
+			self.assertEqual(
+				[setting.name for setting in engine.supportedSettings],
+				["apiKey", "fetchModels", "model", "mediaResolution", "imageQuality"],
+			)
+			self.assertTrue(engine.supportedSettings[0].refreshSettingsOnChange)
+			self.assertEqual(engine.engineConfigSpec["knownModels"], "list(default=list())")
+			self.assertEqual(
+				engine._fetchModelNames("key"),
+				["gemini-3.8-flash", "gemini-4-argon"],
+			)
+			engine.apiKey = "old-key"
+			engine._setKnownModels(["gemini-4-argon"])
+			engine.apiKey = "new-key"
+			self.assertEqual(engine._getKnownModels(), [])
+		finally:
+			module.GeminiEngineMixin._fetchModelNames = baseFetch
+
 	def test_current_model_presets(self) -> None:
 		module = load_gemini_module()
 		models = sys.modules["addon.globalPlugins.visAware.geminiModels"]
 		expected = {
+			"gemini-4-argon": ("low", "low", "high"),
 			"gemini-3.8-flash": ("low", "low", "high"),
 			"gemini-3.7-flash": ("low", "low", "high"),
 			"gemini-3.6-flash": ("medium", "medium", "high"),
@@ -161,17 +237,14 @@ class GeminiAgentInteractionsTestCase(unittest.TestCase):
 		}
 
 		self.assertEqual(models.DEFAULT_GEMINI_MODEL, "gemini-3.6-flash")
+		self.assertEqual(models.DEFAULT_GEMINI_AGENT_MODEL, "gemini-3.8-flash")
 		self.assertEqual(list(models.getGeminiModelChoices()), list(expected))
 		agentModels = models.getGeminiAgentModelChoices()
 		self.assertEqual(
 			list(agentModels.items()),
-			[
-				(model, label)
-				for model, label in models.getGeminiModelChoices().items()
-				if model not in {"gemini-3.1-pro-preview", "gemini-pro-latest"}
-			],
+			[(model, models.getGeminiModelChoices()[model]) for model in models.GEMINI_COMPUTER_USE_MODELS],
 		)
-		self.assertIn(models.DEFAULT_GEMINI_MODEL, agentModels)
+		self.assertNotIn(models.DEFAULT_GEMINI_MODEL, agentModels)
 		expected["gemini-3-unknown"] = (None, None, None)
 		for model, (thinking, interactionsLevel, resolution) in expected.items():
 			with self.subTest(model=model):

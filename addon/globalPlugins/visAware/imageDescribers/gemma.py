@@ -12,6 +12,7 @@ from typing import Any
 import addonHandler
 from logHandler import log
 
+from .._geminiEngine import GeminiEngineMixin
 from .. import network
 from ..engineSettings import (
 	ChoiceEngineSetting,
@@ -79,10 +80,11 @@ def _buildSystemInstruction() -> dict[str, Any]:
 	}
 
 
-class CustomContentRecognizer(BaseDescriber):
+class CustomContentRecognizer(GeminiEngineMixin, BaseDescriber):
 	"""An image description engine that uses the Google Gemma API."""
 
 	name = "gemma"
+	modelFamily = "gemma"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the Google Gemma engine.
 	description = _("Google Gemma")
@@ -96,7 +98,6 @@ class CustomContentRecognizer(BaseDescriber):
 	uploadImageFormat = "JPEG"
 
 	# --- Engine Default Settings ---
-	_apiKey: str = ""
 	_model: str = "gemma-4-26b-a4b-it"
 	_thinkingLevel: str = "off"
 	# Translators: This is the default prompt sent to the Gemma model.
@@ -111,17 +112,7 @@ class CustomContentRecognizer(BaseDescriber):
 		:returns: A list of `EngineSetting` objects.
 		"""
 		return [
-			TextInputEngineSetting(
-				name="apiKey",
-				# Translators: The label for the text field to enter the Gemma API Key.
-				displayNameWithAccelerator=_("API &key"),
-			),
-			ChoiceEngineSetting(
-				name="model",
-				# Translators: The label for a setting to select the Gemma model.
-				displayNameWithAccelerator=_("&Model"),
-				optionsPropertyName="availableModels",
-			),
+			*self._geminiModelSettings(),
 			self.autoRecognitionModelSetting(),
 			ChoiceEngineSetting(
 				name="thinkingLevel",
@@ -139,14 +130,6 @@ class CustomContentRecognizer(BaseDescriber):
 			),
 			self.autoRecognitionPromptSetting(),
 		]
-
-	@property
-	def apiKey(self) -> str:
-		return self._apiKey
-
-	@apiKey.setter
-	def apiKey(self, value: str) -> None:
-		self._apiKey = value
 
 	@property
 	def model(self) -> str:
@@ -174,20 +157,13 @@ class CustomContentRecognizer(BaseDescriber):
 	def prompt(self, value: str) -> None:
 		self._prompt = value
 
-	@property
-	def availableModels(self) -> dict:
-		"""
-		Provides the items for the 'model' choice control in the settings UI.
-
-		:returns: A dictionary of model IDs to display names.
-		"""
-		models = OrderedDict(
+	def _getStaticModelChoices(self) -> OrderedDict[str, str]:
+		return OrderedDict(
 			{
 				"gemma-4-26b-a4b-it": _("Gemma 4 26B A4B IT (recommended, faster)"),
 				"gemma-4-31b-it": _("Gemma 4 31B IT (higher quality, slower)"),
 			},
 		)
-		return self.generateStringSettings(models)
 
 	@property
 	def availableThinkingLevels(self) -> dict:

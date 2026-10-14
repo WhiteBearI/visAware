@@ -198,6 +198,10 @@ sent as an `Authorization: Bearer` token. Ollama engines require a
 vision-capable model, such as Gemma 4; Ollama OCR provides screen coordinates
 only when the model returns valid structured OCR data.
 
+Google Gemini and Gemma engines use the Gemini API key entered in their engine
+settings. Use **Fetch models** to query the models available to that key; only
+models compatible with the selected engine are added to its model list.
+
 Kimi engines support automatic endpoint detection and four official services: Kimi Code China (`https://api.kimi.com/coding/v1`), Kimi Code overseas (`https://api.kimi.ai/coding/v1`), Kimi Open Platform China (`https://api.moonshot.cn/v1`), and Kimi Open Platform overseas (`https://api.moonshot.ai/v1`). Choose the service that matches the key, or leave it on automatic detection. The first use, or **Detect service and models**, calls `/models` and fills the account's available models; the default Kimi Code model is `kimi-for-coding`. Custom service URLs remain available for compatible proxies.
 
 DeepSeek engines use the official OpenAI-compatible API. Set the Base URL to
