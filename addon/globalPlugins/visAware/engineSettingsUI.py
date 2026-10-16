@@ -178,6 +178,7 @@ class SpecificEnginePanel(SettingsPanel):
 			self.settingsSizer.Clear(delete_windows=True)
 			self.makeSettings(self.settingsSizer)
 		super().onPanelActivated()
+		self.Show(bool(self._sizerDict))
 
 	def updateDriverSettings(self, changedSetting: Optional[str] = None) -> None:
 		"""Updates the GUI controls to reflect the current engine's settings."""
@@ -210,6 +211,7 @@ class SpecificEnginePanel(SettingsPanel):
 					self.settingsSizer.Hide(self._sizerDict[setting.name])
 
 		self.settingsSizer.Layout()
+		self.Show(bool(self._sizerDict))
 
 	def _createControl(self, setting: EngineSetting, engine: AbstractEngine) -> None:
 		"""
