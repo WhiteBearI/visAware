@@ -37,8 +37,11 @@ def buildModelsUrl(baseUrl: str) -> str:
 	baseUrl = baseUrl.rstrip("/")
 	if baseUrl.endswith("/models"):
 		return baseUrl
+	hadChatCompletionsEndpoint = baseUrl.endswith("/chat/completions")
 	if baseUrl.endswith("/chat/completions"):
 		baseUrl = baseUrl[: -len("/chat/completions")]
+	if hadChatCompletionsEndpoint:
+		return f"{baseUrl}/models"
 	if baseUrl.endswith("/v1"):
 		return f"{baseUrl}/models"
 	return f"{baseUrl}/v1/models"
@@ -49,6 +52,15 @@ class OpenAICompatibleSettings:
 	apiKey: str
 	baseUrl: str
 	chatCompletionsPath: str = "/v1/chat/completions"
+
+
+def setCompletionTokenLimit(payload: dict[str, Any], model: str, limit: int) -> None:
+	"""Sets the completion limit supported by the selected OpenAI model family."""
+	modelName = model.lower().rsplit("/", 1)[-1]
+	key = "max_completion_tokens" if modelName.startswith(("o1", "o3", "o4", "gpt-5")) else "max_tokens"
+	payload.pop("max_tokens", None)
+	payload.pop("max_completion_tokens", None)
+	payload[key] = limit
 
 
 class OpenAICompatibleClient:
@@ -73,10 +85,13 @@ class OpenAICompatibleClient:
 		*,
 		timeout: float,
 		stream: bool = False,
+		includeUsage: bool = False,
 		cancelCheck: Any = None,
 	) -> dict[str, Any]:
 		if stream:
-			payload = {**payload, "stream": True, "stream_options": {"include_usage": True}}
+			payload = {**payload, "stream": True}
+			if includeUsage:
+				payload["stream_options"] = {"include_usage": True}
 		params: dict[str, Any] = {
 			"method": "POST",
 			"url": buildChatCompletionsUrl(self.baseUrl, self.chatCompletionsPath),

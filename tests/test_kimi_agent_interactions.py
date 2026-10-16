@@ -514,7 +514,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 		client = protocol.OpenAICompatibleClient(
 			protocol.OpenAICompatibleSettings("secret", "https://example.test/v1"),
 		)
-		params = client.requestParams({"model": "model"}, timeout=12, stream=True)
+		params = client.requestParams({"model": "model"}, timeout=12, stream=True, includeUsage=True)
 
 		self.assertEqual(params["url"], "https://example.test/v1/chat/completions")
 		self.assertEqual(params["headers"]["Authorization"], "Bearer secret")

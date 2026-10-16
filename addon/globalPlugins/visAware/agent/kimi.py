@@ -136,6 +136,7 @@ class KimiAgentClient:
 			payload,
 			timeout=KIMI_REQUEST_TIMEOUT,
 			stream=shouldStream,
+			includeUsage=shouldStream,
 			cancelCheck=self._cancellationChecker,
 		)
 		if isVerboseDebugLoggingEnabled():

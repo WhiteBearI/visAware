@@ -74,6 +74,13 @@ def test_model_discovery_preserves_order_and_transport_controls(data):
 	assert kwargs["retry"] is False
 
 
+def test_model_discovery_uses_root_models_for_full_root_chat_endpoint():
+	load_kimi_image_module()
+	module = sys.modules["addon.globalPlugins.visAware.openaiCompatible"]
+
+	assert module.buildModelsUrl("https://api.example/chat/completions") == ("https://api.example/models")
+
+
 def test_responses_client_reuses_request_and_model_transport():
 	load_kimi_image_module()
 	module = _load_module(

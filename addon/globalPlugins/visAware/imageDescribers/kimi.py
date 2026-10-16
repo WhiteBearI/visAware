@@ -148,6 +148,7 @@ class CustomContentRecognizer(KimiEngineMixin, BaseDescriber):
 			payload,
 			timeout=KIMI_REQUEST_TIMEOUT,
 			stream=request.streamResult,
+			includeUsage=request.streamResult,
 			cancelCheck=getattr(request, "cancellationChecker", None),
 		)
 
@@ -233,6 +234,7 @@ class CustomContentRecognizer(KimiEngineMixin, BaseDescriber):
 			payload,
 			timeout=KIMI_REQUEST_TIMEOUT,
 			stream=stream,
+			includeUsage=stream,
 			cancelCheck=cancellationChecker,
 		)
 

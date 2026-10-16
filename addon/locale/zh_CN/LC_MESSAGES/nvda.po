@@ -2,8 +2,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'customOCR' '0.1.1-dev'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2026-10-14 20:08+0800\n"
-"PO-Revision-Date: 2026-10-16 09:30+0800\n"
+"POT-Creation-Date: 2026-10-16 16:38+0800\n"
+"PO-Revision-Date: 2026-10-16 17:53+0800\n"
 "Last-Translator: Larry Wang <larry.wang.801@gmail.com>\n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -466,58 +466,59 @@ msgid "Service returned an error: {code} {reason}. Details: {details}"
 msgstr "服务返回错误：{code} {reason}。详情：{details}"
 
 #. Translators: An error message for invalid data returned by OpenAI-compatible service.
-#: addon\globalPlugins\visAware\openaiCompatible.py:138
+#: addon\globalPlugins\visAware\openaiCompatible.py:153
 msgid "OpenAI-compatible service returned an invalid response."
 msgstr "OpenAI 兼容服务返回了无效响应。"
 
 #. Translators: An error message for malformed OpenAI-compatible service Chat Completion data.
-#: addon\globalPlugins\visAware\openaiCompatible.py:140
+#: addon\globalPlugins\visAware\openaiCompatible.py:155
 msgid "OpenAI-compatible service returned malformed completion data."
 msgstr "OpenAI 兼容服务返回的补全数据格式错误。"
 
 #. Translators: An error message for malformed data in a OpenAI-compatible service streaming response.
-#: addon\globalPlugins\visAware\openaiCompatible.py:142
+#: addon\globalPlugins\visAware\openaiCompatible.py:157
 msgid "OpenAI-compatible service streaming response contained malformed data."
 msgstr "OpenAI 兼容服务流式响应中包含格式错误的数据。"
 
 #. Translators: A fallback message when a OpenAI-compatible service API error has no details.
-#: addon\globalPlugins\visAware\openaiCompatible.py:167
+#: addon\globalPlugins\visAware\openaiCompatible.py:182
 msgid "Unknown API error"
 msgstr "未知 API 错误"
 
 #. Translators: An error returned by OpenAI-compatible service. The placeholder contains the API's message.
-#: addon\globalPlugins\visAware\openaiCompatible.py:181
-#: addon\globalPlugins\visAware\openaiCompatible.py:288
+#: addon\globalPlugins\visAware\openaiCompatible.py:196
+#: addon\globalPlugins\visAware\openaiCompatible.py:303
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:175
 #, python-brace-format
 msgid "OpenAI-compatible service API error: {}"
 msgstr "OpenAI 兼容服务 API 错误：{}"
 
 #. Translators: Reported when OpenAI-compatible service stops because the output token limit was reached.
-#: addon\globalPlugins\visAware\openaiCompatible.py:189
-#: addon\globalPlugins\visAware\openaiCompatible.py:430
+#: addon\globalPlugins\visAware\openaiCompatible.py:204
+#: addon\globalPlugins\visAware\openaiCompatible.py:445
 msgid "OpenAI-compatible service response was truncated at the token limit."
 msgstr "OpenAI 兼容服务响应因达到 token 上限而被截断。"
 
 #. Translators: An error for an unsupported OpenAI-compatible service completion finish reason.
-#: addon\globalPlugins\visAware\openaiCompatible.py:192
-#: addon\globalPlugins\visAware\openaiCompatible.py:435
+#: addon\globalPlugins\visAware\openaiCompatible.py:207
+#: addon\globalPlugins\visAware\openaiCompatible.py:450
 msgid "OpenAI-compatible service returned an unsupported completion result."
 msgstr "OpenAI 兼容服务返回了不支持的补全结果。"
 
-#: addon\globalPlugins\visAware\openaiCompatible.py:420
+#: addon\globalPlugins\visAware\openaiCompatible.py:435
 msgid "OpenAI-compatible service streaming response ended before completion."
 msgstr "OpenAI 兼容服务流式响应在完成前已结束。"
 
-#: addon\globalPlugins\visAware\openaiCompatible.py:425
+#: addon\globalPlugins\visAware\openaiCompatible.py:440
 msgid ""
 "OpenAI-compatible service streaming response did not include a finish reason."
 msgstr "OpenAI 兼容服务流式响应未包含结束原因。"
 
-#: addon\globalPlugins\visAware\openaiCompatible.py:441
+#: addon\globalPlugins\visAware\openaiCompatible.py:456
 msgid "OpenAI-compatible service streaming response contained no tool call."
 msgstr "OpenAI 兼容服务流式响应未包含工具调用。"
 
-#: addon\globalPlugins\visAware\openaiCompatible.py:447
+#: addon\globalPlugins\visAware\openaiCompatible.py:462
 msgid ""
 "OpenAI-compatible service streaming response returned an unexpected tool "
 "call."
@@ -1247,6 +1248,7 @@ msgstr "{} 返回的 Agent 动作数据格式错误。"
 #: addon\globalPlugins\visAware\agent\gemini.py:50
 #: addon\globalPlugins\visAware\agent\kimi.py:86
 #: addon\globalPlugins\visAware\agent\openai.py:49
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:59
 msgid "API key is missing. Please configure it in the AI Agent settings."
 msgstr "缺少 API 密钥。请在 AI Agent 设置中配置。"
 
@@ -1336,43 +1338,43 @@ msgstr "Gemini 返回了无效的 Agent 动作 JSON。"
 msgid "Kimi returned malformed agent action data."
 msgstr "Kimi 返回的 Agent 动作数据格式错误。"
 
-#: addon\globalPlugins\visAware\agent\kimi.py:250
+#: addon\globalPlugins\visAware\agent\kimi.py:251
 msgid "The current screenshot is too large for the Kimi request limit."
 msgstr "当前屏幕截图超过 Kimi 的请求大小限制。"
 
 #. Translators: An error message returned from the Kimi API.
-#: addon\globalPlugins\visAware\agent\kimi.py:258
+#: addon\globalPlugins\visAware\agent\kimi.py:259
 #, python-brace-format
 msgid "Kimi API error: {}"
 msgstr "Kimi API 错误：{}"
 
 #. Translators: Reported when Kimi cannot finish an Agent action within the token limit.
-#: addon\globalPlugins\visAware\agent\kimi.py:264
+#: addon\globalPlugins\visAware\agent\kimi.py:265
 msgid "Kimi agent response was truncated at the token limit."
 msgstr "Kimi Agent 响应因达到 token 上限而被截断。"
 
 #. Translators: Reported when Kimi returns zero or multiple actions for one Agent step.
-#: addon\globalPlugins\visAware\agent\kimi.py:272
+#: addon\globalPlugins\visAware\agent\kimi.py:273
 msgid "Kimi did not return exactly one agent tool call."
 msgstr "Kimi 返回的 Agent 工具调用数量不是一个。"
 
 #. Translators: Reported when Kimi calls a tool unsupported by the desktop Agent.
-#: addon\globalPlugins\visAware\agent\kimi.py:281
+#: addon\globalPlugins\visAware\agent\kimi.py:282
 msgid "Kimi returned an unsupported agent tool call."
 msgstr "Kimi 返回了不支持的 Agent 工具调用。"
 
 #. Translators: Reported when Kimi reuses an Agent tool-call identifier.
-#: addon\globalPlugins\visAware\agent\kimi.py:291
+#: addon\globalPlugins\visAware\agent\kimi.py:292
 msgid "Kimi returned a duplicate agent tool call ID."
 msgstr "Kimi 返回了重复的 Agent 工具调用 ID。"
 
 #. Translators: Reported when Kimi returns invalid JSON for an Agent action.
-#: addon\globalPlugins\visAware\agent\kimi.py:298
+#: addon\globalPlugins\visAware\agent\kimi.py:299
 msgid "Kimi returned invalid agent action JSON."
 msgstr "Kimi 返回了无效的 Agent 动作 JSON。"
 
 #. Translators: Reported when Kimi omits reasoning required for the next Agent step.
-#: addon\globalPlugins\visAware\agent\kimi.py:306
+#: addon\globalPlugins\visAware\agent\kimi.py:307
 msgid "Kimi returned incomplete preserved thinking data."
 msgstr "Kimi 返回的保留思考数据不完整。"
 
@@ -1466,6 +1468,39 @@ msgstr "正在执行 {count} 项计算机操作。"
 #, python-brace-format
 msgid "OpenAI API error: {}"
 msgstr "OpenAI API 错误：{}"
+
+#. Translators: Reported when no model is configured for the selected AI Agent.
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:63
+msgid "Model is missing. Please configure it in the AI Agent settings."
+msgstr "缺少模型。请在 AI Agent 设置中配置。"
+
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:170
+msgid ""
+"The current screenshot is too large for the OpenAI-compatible request limit."
+msgstr "当前屏幕截图超过 OpenAI 兼容服务的请求大小限制。"
+
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:179
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:185
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:191
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:205
+msgid "OpenAI-compatible service returned malformed agent action data."
+msgstr "OpenAI 兼容服务返回的 Agent 动作数据格式错误。"
+
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:182
+msgid "OpenAI-compatible service did not return exactly one agent tool call."
+msgstr "OpenAI 兼容服务未返回恰好一个 Agent 工具调用。"
+
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:188
+msgid "OpenAI-compatible service returned an unsupported agent tool call."
+msgstr "OpenAI 兼容服务返回了不支持的 Agent 工具调用。"
+
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:197
+msgid "OpenAI-compatible service returned a duplicate agent tool call ID."
+msgstr "OpenAI 兼容服务返回了重复的 Agent 工具调用 ID。"
+
+#: addon\globalPlugins\visAware\agent\openaiCompatible.py:203
+msgid "OpenAI-compatible service returned invalid agent action JSON."
+msgstr "OpenAI 兼容服务返回了无效的 Agent 动作 JSON。"
 
 #: addon\globalPlugins\visAware\agent\session.py:84
 msgid "Agent started."
@@ -1575,6 +1610,11 @@ msgstr "Kimi (Moonshot AI)"
 #: addon\globalPlugins\visAware\agent\engines\openai.py:30
 msgid "OpenAI"
 msgstr "OpenAI"
+
+#. Translators: The description of the OpenAI-compatible Agent engine.
+#: addon\globalPlugins\visAware\agent\engines\openaiCompatibleAgent.py:26
+msgid "OpenAI-compatible"
+msgstr "OpenAI 兼容"
 
 #. Translators: The description of the Vivo Agent engine.
 #: addon\globalPlugins\visAware\agent\engines\vivo.py:25
@@ -2037,11 +2077,13 @@ msgstr "Gemini OCR 返回的结构化数据格式错误。"
 #. Translators: An error message for an empty but successful server response.
 #: addon\globalPlugins\visAware\contentRecognizers\geminiOCR.py:260
 #: addon\globalPlugins\visAware\contentRecognizers\ollamaOCR.py:218
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:156
 #: addon\globalPlugins\visAware\imageDescribers\deepseek.py:225
 #: addon\globalPlugins\visAware\imageDescribers\gemini.py:300
 #: addon\globalPlugins\visAware\imageDescribers\gemma.py:406
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:365
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:367
 #: addon\globalPlugins\visAware\imageDescribers\ollama.py:178
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:137
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:313
 msgid "Server returned a successful but empty response."
 msgstr "服务器返回了成功但为空的响应。"
@@ -2133,13 +2175,16 @@ msgstr "启用流式输出(&E)"
 #. Translators: The label for a setting to customize the prompt for the vision model.
 #. Translators: The label for a setting to customize the Kimi prompt.
 #. Translators: The label for a setting to customize the prompt for the model.
+#. Translators: The label for a setting to customize the image description prompt.
 #. Translators: The label for an engine setting to customize the prompt for the vision model.
 #: addon\globalPlugins\visAware\contentRecognizers\ollamaOCR.py:151
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:85
 #: addon\globalPlugins\visAware\imageDescribers\deepseek.py:79
 #: addon\globalPlugins\visAware\imageDescribers\gemini.py:86
 #: addon\globalPlugins\visAware\imageDescribers\gemma.py:127
 #: addon\globalPlugins\visAware\imageDescribers\kimi.py:88
 #: addon\globalPlugins\visAware\imageDescribers\ollama.py:111
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:73
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:87
 msgid "Custom &prompt"
 msgstr "自定义提示词(&P)"
@@ -2168,6 +2213,36 @@ msgstr "Ollama OCR 返回了格式错误的结构化数据。"
 #: addon\globalPlugins\visAware\contentRecognizers\ollamaOCR.py:355
 msgid "Ollama OCR cannot convert coordinates without the uploaded image size."
 msgstr "Ollama OCR 缺少上传图像尺寸，无法转换坐标。"
+
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:54
+msgid "OpenAI-compatible OCR returned malformed structured data."
+msgstr "OpenAI 兼容 OCR 返回的结构化数据格式错误。"
+
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:56
+msgid ""
+"OpenAI-compatible OCR cannot convert coordinates without the uploaded image "
+"size."
+msgstr "OpenAI 兼容 OCR 缺少上传图像尺寸，无法转换坐标。"
+
+#. Translators: The description of the OpenAI-compatible OCR engine.
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:66
+msgid "OpenAI-compatible OCR"
+msgstr "OpenAI 兼容 OCR"
+
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:165
+msgid "OpenAI-compatible OCR returned an empty response."
+msgstr "OpenAI 兼容 OCR 返回了空响应。"
+
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:194
+msgid ""
+"API key is missing. Please configure it in the OpenAI-compatible OCR "
+"settings."
+msgstr "缺少 API 密钥。请在 OpenAI 兼容 OCR 设置中配置。"
+
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:198
+msgid ""
+"Model is missing. Please configure it in the OpenAI-compatible OCR settings."
+msgstr "缺少模型。请在 OpenAI 兼容 OCR 设置中配置。"
 
 #. Translators: The description of the PaddleOCR engine.
 #: addon\globalPlugins\visAware\contentRecognizers\paddleOCR.py:48
@@ -2728,6 +2803,7 @@ msgstr "DeepSeek 响应因内容过滤而被阻止。"
 #. Translators: The label for an engine setting to enable streaming output.
 #: addon\globalPlugins\visAware\imageDescribers\gemini.py:73
 #: addon\globalPlugins\visAware\imageDescribers\kimi.py:80
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:67
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:76
 msgid "&Enable streaming output (if available)"
 msgstr "启用流式输出（如果可用）(&S)"
@@ -2797,18 +2873,18 @@ msgstr "Gemma API 错误：{}"
 msgid "API key is missing. Please configure it in the Kimi engine settings."
 msgstr "缺少 API 密钥。请在 Kimi 引擎设置中配置。"
 
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:185
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:186
 msgid "Kimi returned a successful but empty response."
 msgstr "Kimi 返回了成功但为空的响应。"
 
 #. Translators: Reported when the required Kimi follow-up context exceeds the model limit.
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:216
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:217
 msgid "The Kimi conversation is too large for the selected model."
 msgstr "Kimi 对话内容过长，超出了所选模型的上下文限制。"
 
 #. Translators: Reported when Kimi cannot continue without preserved reasoning.
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:248
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:256
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:250
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:258
 msgid "Kimi follow-up history is missing the complete assistant response."
 msgstr "Kimi 追问历史中缺少完整的助手响应。"
 
@@ -2827,6 +2903,27 @@ msgstr ""
 #: addon\globalPlugins\visAware\imageDescribers\ollama.py:59
 msgid "Ollama Vision"
 msgstr "Ollama Vision"
+
+#. Translators: The description of the OpenAI-compatible image description engine.
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:47
+msgid "OpenAI-compatible image description"
+msgstr "OpenAI 兼容图像描述"
+
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:158
+msgid "OpenAI-compatible service returned a successful but empty response."
+msgstr "OpenAI 兼容服务返回了成功但为空的响应。"
+
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:243
+msgid ""
+"API key is missing. Please configure it in the OpenAI-compatible image "
+"settings."
+msgstr "缺少 API 密钥。请在 OpenAI 兼容图像描述设置中配置。"
+
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:247
+msgid ""
+"Model is missing. Please configure it in the OpenAI-compatible image "
+"settings."
+msgstr "缺少模型。请在 OpenAI 兼容图像描述设置中配置。"
 
 #. Translators: The description of the VIVO BlueLLM engine.
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:38
