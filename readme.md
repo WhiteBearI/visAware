@@ -3,181 +3,176 @@
 Vis Aware is an NVDA add-on for OCR, AI-powered image description, automatic
 recognition, and AI-assisted computer control.
 
-Vis Aware requires NVDA 2026.1 or later. Most hosted engines require an
-Internet connection and service credentials. Ollama is used for local
-self-hosting (for example, Google Gemma).
+Most engines require an Internet connection and service credentials. Vis Aware
+also includes RapidOCR for fully offline use. You can use Ollama to self-host
+local models such as Google's open-source Gemma models.
 
 ## Quick start
 
-1. Open `NVDA menu > Preferences > Vis Aware settings...`. In **General**,
-   you can sign in to your NVDA Chinese Community (www.nvdacn.com) account to
-   use the related free community services. Then select and configure other
-   engines as needed in the corresponding **OCR**, **Image description**, or
-   **AI Agent** panel.
-2. Press `NVDA+alt+1` to select a mode (capability type): **OCR**, **Image
-   description**, or **AI Agent**.
-3. Press `NVDA+alt+2` to select an engine supported by that mode. Choose an
-   engine that you configured in step 1.
-4. Move the navigator object to the content you want to recognize, or press
-   `NVDA+alt+3` to select another recognition source (for example, an image or
-   image file on the clipboard).
-5. Press `NVDA+alt+space` once to perform recognition using the selected
-   capability or start or stop the Agent. For regular recognition:
-
-   - Press once to present the result in an NVDA recognition result document.
-     For OCR results, you can use `Enter` or `Space` to click the coordinates
-     corresponding to the text; this is useful when recognizing a window.
-   - The behavior of pressing twice depends on whether **Show text results in a
-     browsable message** is selected in **General** settings. If selected, the
-     result is presented in an NVDA browse mode dialog, which is suitable for
-     mathematical formulas, tables, or structured content that requires
-     Markdown rendering. If not selected, NVDA only announces the recognition
-     result and does not display a dialog.
+1. Open `NVDA menu > Preferences > Vis Aware settings...`. In the **General**
+   panel, enter your [NVDACN account](https://nvdacn.com/admin/login.php) to
+   use the related free community services, which currently include Vivo image
+   description, OCR, and general-purpose language model services.
+    - If you have API access from another model provider, such as Kimi,
+      DeepSeek, or Gemini, configure it in the corresponding **OCR**, **Image
+      description**, or **AI Agent** panel.
+    - Click **OK** to save the settings.
+2. Press `NVDA+alt+1` to select a mode: **OCR**, **Image description**, or
+   **AI Agent**.
+3. Press `NVDA+alt+2` to select an engine for the current mode. Choose an
+   engine configured in step 1. If you signed in to NVDACN, you can choose a
+   Vivo engine.
+4. Press `NVDA+alt+3` to select a recognition source: **Navigator object** or
+   **Image or image file on the clipboard**.
+5. Press `NVDA+alt+space` to start recognition using the selected mode:
+    - A single press presents the result in an NVDA recognition result
+      document. For OCR results, press `Enter` or `Space` on text to click its
+      corresponding location. This is useful for custom-drawn windows that are
+      not accessible to screen readers.
+    - The behavior of pressing twice depends on whether **Show text results in
+      a browsable message** is selected in **General**. When selected, the
+      result is shown in an NVDA browse mode dialog, which is useful for
+      mathematical formulas, tables, and other content that requires Markdown
+      rendering. Otherwise, NVDA announces the result without opening a dialog.
+    - In **AI Agent** mode, enter a task for the AI to perform. This is useful
+      for custom-drawn windows that are not accessible to screen readers and
+      for complex, multi-step tasks.
+6. While a task is running, press `NVDA+alt+space` at any time to stop it or
+   start a new recognition task.
 
 ## Modes and recognition sources
 
 Vis Aware provides three modes:
 
 * **OCR** extracts text from an image.
-* **Image description** describes visual content. Supported engines can answer
-  follow-up questions about the previous description.
+* **Image description** describes visual content. Engines that support
+  follow-up questions can answer questions about the previous description.
 * **AI Agent** analyzes the screen and performs computer actions for a task.
 
-OCR and image description can use these recognition sources:
+OCR and image description support the following recognition sources:
 
 * Navigator object
 * Whole screen
 * Foreground window
 * Image or image file on the clipboard
 
-AI Agent mode captures the full screen directly and does not use the selected
+AI Agent captures the full screen directly and does not use the selected
 recognition source.
 
-## Commands
+## Settings
+
+All Vis Aware settings are available from `NVDA menu > Preferences > Vis Aware
+settings...`.
+
+The settings dialog contains these panels:
+
+* **General**: result display, copying results to the clipboard, automatic
+  reading, debug logging, recognition sources included when cycling, the Vis
+  Aware mode, and the NVDACN account.
+* **Automatic recognition**: recognition type, engine, prompt, model, model
+  fetching, and the web-image screenshot preference.
+* **OCR**, **Image description**, and **AI Agent**: the current engine, engine
+  enablement, and settings provided by each engine.
+
+You can disable engines you do not use. Disabled engines are skipped during
+normal use and engine cycling. At least one engine must remain enabled for
+each mode.
+
+## Commands and gestures
 
 The following commands have default gestures:
 
 | Command | Default gesture |
 | --- | --- |
-| Perform recognition using the current settings | `NVDA+alt+space` |
-| Ask a follow-up question about the previous image description | `NVDA+alt+q` |
 | Cycle through recognition modes | `NVDA+alt+1` |
 | Cycle through engines for the current mode | `NVDA+alt+2` |
 | Cycle through recognition sources | `NVDA+alt+3` |
+| Perform recognition using the current settings | `NVDA+alt+space` |
+| Ask a follow-up question about the previous image description | `NVDA+alt+q` |
 
-The following commands have no default gesture:
+The following commands have no default gesture. Assign them in NVDA's **Input
+Gestures** dialog:
 
-* Describes the content of the current navigator object
-* Describes images on the clipboard
-* Recognizes the content of the current navigator object using OCR
-* Recognizes text in images on the clipboard using OCR
-* Shows the previous recognition result
-* Cancels the current recognition
-* Cycles through automatic recognition modes: off, image description, and OCR
-
-After assigning a gesture to **Describes images on the clipboard**, press it
-once to present the result in an NVDA recognition result document. Press it
-twice in quick succession to show the result in a browsable message or have
-NVDA announce it, depending on the **Show text results in a browsable message**
-setting.
+* Describe the content of the current navigator object
+* Describe images on the clipboard
+* Recognize the content of the current navigator object using OCR
+* Recognize text in images on the clipboard using OCR
+* Show the previous recognition result
+* Cancel the current recognition
+* Cycle through automatic recognition modes: off, image description, and OCR
 
 ## Recognition results
 
-When OCR results include coordinates, pressing `enter` or `space` on text in
-the recognition result document clicks the corresponding location in the
-recognized screen area.
+Recognition results can be shown in an NVDA recognition result document,
+announced directly, or shown in browse mode, depending on the settings. Browse
+mode renders supported Markdown and mathematical formulas. Results can also be
+copied to the clipboard.
 
-Recognition results can be displayed in an NVDA virtual document or, depending
-on the setting, in a browse mode dialog. Browse mode renders supported Markdown
-and mathematical formulas. Results can also be copied to the clipboard.
+When OCR results include coordinates, press `Enter` or `Space` on text in the
+recognition result document to simulate a mouse click at the corresponding
+location on the screen.
 
-Only the previous recognition result from the current NVDA session is retained.
-For image description engines that support follow-up questions, the follow-up
-question command opens a multi-turn dialog and streams spoken answers when
-supported. In that dialog, `control+enter` sends a question and `escape`
-cancels the request or closes the dialog. Use **View formatted content** to view
-the initial description or latest answer in browse mode.
+Vis Aware retains only the most recent recognition result during the current
+NVDA session. For image description engines that support follow-up questions,
+the follow-up command opens a multi-turn dialog. In that dialog, press
+`Control+Enter` to send a question and `Escape` to cancel the request or close
+the dialog. Use **View formatted content** to view the conversation in browse
+mode, which is useful for mathematical formulas and Markdown content.
 
-Follow-up questions are supported by Google Gemini, Google Gemma, Kimi, VIVO
-BlueLLM Vision, and Ollama Vision. Outside the conversation dialog, streaming
-output is available only when browse mode is not in use.
+## AI Agent
+
+AI Agent first asks what task you want to complete, starts with the foreground
+window, and can operate across windows. It can click, type, press keys, scroll,
+drag and drop, navigate, and wait. It can also ask you for information when
+needed. Actions are not confirmed one by one, so monitor the session and stop
+it when necessary.
+
+Each AI Agent step sends a full-screen screenshot to the selected service. The
+screenshot may include content from other windows. Avoid running AI Agent while
+sensitive information is visible on the screen.
 
 ## Automatic recognition
 
+Automatic recognition starts in the background when the system focus, browse
+mode cursor, or navigator object moves to a supported graphic control. The
+result is announced automatically and saved as the previous recognition
+result. Follow-up questions are available when supported by the engine.
+
 Automatic recognition is off by default. In the **Automatic recognition**
 panel, choose OCR or image description, then choose the current engine or a
-specific enabled engine. The prompt and model fields override that engine only
-for automatic recognition. Leave the prompt blank to use Vis Aware's concise
-default prompt (20 to 30 characters, without Markdown), and choose **Use the
-model selected in engine settings** to follow its regular model. When
-supported, use **Fetch models** to load available model names.
+specific enabled engine. The prompt and model override that engine's settings
+only for automatic recognition. Leave the prompt blank to use Vis Aware's
+concise default prompt, limited to 20 to 30 characters and without Markdown.
+Select **Use the model selected in engine settings** to use the engine's
+regular model. When supported, use **Fetch models** to load available model
+names.
 
-Only engines that support automatic recognition appear in its engine list.
-Text CAPTCHA recognition is available only for manual recognition. When using
-the current engine, automatic recognition pauses if that engine does not support
-it, and resumes when you select a supported engine. If a saved engine is no longer
-available for automatic recognition, settings show it as off until you choose
-another engine; the saved configuration changes only when you save settings.
+The automatic recognition engine list includes only engines that support this
+feature. When **Current engine** is selected and the current engine does not
+support automatic recognition, automatic recognition pauses and resumes when
+you select a supported engine.
 
-Automatic recognition runs in the background when the system focus, browse
-mode cursor, or navigator object moves to a supported graphic control. The
-result is announced automatically and saved as the previous result; follow-up
-questions are available when supported by the engine.
+For web graphics, Vis Aware normally uses the image URL and falls back to an
+object screenshot when no URL is available. When **Prefer screenshots for web
+images** is enabled, Vis Aware first recognizes the content shown on screen and
+falls back to the URL if a screenshot cannot be captured.
 
-For web graphics, Vis Aware normally uses the image's URL and uses an object
-screenshot instead when no URL is available. **Prefer screenshots for web
-images** recognizes the content shown on the screen first and falls back to the
-URL if a screenshot cannot be captured.
+---
 
-## AI Agent mode
+## Supported engines
 
-The AI Agent asks for a task, starts from the foreground window, and can
-operate across windows. It can click, type, press keys, scroll, drag and drop,
-navigate, wait, and ask you for information when needed. Actions are not
-confirmed one by one, so monitor the session and stop it when necessary.
+### Be My Eyes / Be My AI
 
-Each AI Agent step sends the selected service a full-screen screenshot, which
-can include content from other windows. Avoid running the AI Agent while
-sensitive information is visible on the screen.
+Be My Eyes / Be My AI can describe an image and answer follow-up questions
+about the same image. To use it, open the image description settings, choose
+**Log in to Be My Eyes...**, and enter your Be My Eyes email address and
+password. Vis Aware does not store your password.
 
-On supported systems with NVDA 2026.3 or later, the AI Agent can capture the
-original screen while Screen Curtain or NVDA's built-in Magnifier is active.
-When Screen Curtain is active, the Agent can therefore send the hidden screen
-content to the selected service and perform actions without a visible display.
-The Agent cannot start with Screen Curtain when Windows Graphics Capture is
-unavailable.
-
-## Settings
-
-Open `NVDA menu > Preferences > Vis Aware settings...`.
-
-The settings dialog contains these panels:
-
-* **General**: result output, clipboard copying, automatic reading, debug
-  logging, the sources included when cycling, the Vis Aware mode, and NVDACN
-  account details.
-* **Automatic recognition**: automatic recognition type, engine, prompt,
-  model, fetching model names, and web-image screenshot preference.
-* **OCR**, **Image description**, and **AI Agent**: the current engine, engine
-  enablement, and settings provided by each engine.
-
-Disabled engines are skipped during normal use and engine cycling. At least one
-engine must remain enabled in each mode.
-
-For PaddleOCR / PaddleOCR-VL, the OCR settings support an AI Studio hosted task
-API, an AI Studio deployed service, or a self-hosted PaddleOCR service.
-
-## Be My Eyes / Be My AI
-
-Be My Eyes / Be My AI can describe an image and answer follow-up questions about
-the same image. To use it, open the image description settings, choose **Log in
-to Be My Eyes...**, and enter your Be My Eyes email address and password. Your
-password is not stored by Vis Aware.
-
-This engine supports manual descriptions and follow-up questions. Automatic
-recognition, custom prompts, and streaming are unavailable. If you cancel a
-follow-up after sending it, recognize the image again before asking another
-question, as a delayed reply may otherwise be associated with a later question.
+This engine supports manual image descriptions and follow-up questions. It
+does not support automatic recognition, custom prompts, or streaming. If you
+cancel a follow-up after sending it, recognize the image again before asking
+another question; otherwise, a delayed response may be associated with a later
+question.
 
 Images and questions are sent to Be My Eyes. Service availability, account
 limits, and available features are controlled by Be My Eyes and may change.
@@ -185,105 +180,39 @@ Vis Aware is not responsible for account restrictions, service changes, data
 loss, or other consequences of using the service. Follow Be My Eyes' applicable
 terms and avoid sending sensitive information unless you accept the risks.
 
-## Baimiao OCR / Formula Recognition
+### Baimiao OCR / Formula Recognition
 
-For [Baimiao OCR](https://baimiaoapp.com) or Baimiao Formula Recognition, select
-**Log in to Baimiao...**
-in the OCR settings and enter your Baimiao email address or mobile number and
-password. Both engines share a login session.
+To use [Baimiao OCR](https://baimiaoapp.com) or Baimiao Formula Recognition,
+open the OCR engine settings, choose **Log in to Baimiao...**, and enter your
+Baimiao email address or mobile number and password. Both engines share the
+same login session.
 
-Vis Aware stores a fixed identifier for this device, along with the display name
-or masked login identifier and membership level shown on the settings button.
-These values are protected with Windows DPAPI; the password is never stored.
-Formula Recognition returns both text and formulas. In browsable results,
-formulas are presented in a format that works well with screen readers.
+Vis Aware stores a fixed identifier for this device, along with the display
+name or masked login identifier and membership level shown on the settings
+button. These values are protected with Windows DPAPI; your password is never
+stored. Formula Recognition returns both text and formulas. In browsable
+results, formulas are presented in a screen-reader-friendly format.
 
 Both engines use the [Baimiao web version](https://web.baimiaoapp.com/). Device
-limits, quotas, and available features are determined by Baimiao and may vary by
-account.
-Logging out in Vis Aware clears the login stored on this computer, but does not
-guarantee that the device is signed out of the Baimiao account. Sign out devices
-you no longer use in the Baimiao mobile app.
+limits, quotas, and available features are determined by Baimiao and may vary
+by account. Logging out in Vis Aware clears the login stored on this computer,
+but does not guarantee that the device is signed out of the Baimiao account.
+Sign out devices you no longer use in the Baimiao mobile app.
 
 This integration uses a non-public Baimiao web interface. The interface may
 change or become unavailable without notice. Use it at your own risk; Vis Aware
-is not responsible for account restrictions, service changes, data loss, or any
-other consequences arising from its use. Follow Baimiao's applicable terms.
+is not responsible for account restrictions, service changes, data loss, or
+other consequences of using this interface. Follow Baimiao's applicable terms.
 
-For Ollama engines, enter a full API URL or a host and port such as
-`localhost:11434`. The default API root is `http://localhost:11434/api`. Use
-**Fetch models** to load model names and then choose a model. If no model is
-selected, the first model returned by Ollama is used. The optional API key is
-sent as an `Authorization: Bearer` token. Ollama engines require a
-vision-capable model, such as Gemma 4; Ollama OCR provides screen coordinates
-only when the model returns valid structured OCR data.
-
-Google Gemini and Gemma engines use the Gemini API key entered in their engine
-settings. Use **Fetch models** to query the models available to that key; only
-models compatible with the selected engine are added to its model list.
-
-Kimi engines support automatic endpoint detection and four official services: Kimi Code China (`https://api.kimi.com/coding/v1`), Kimi Code overseas (`https://api.kimi.ai/coding/v1`), Kimi Open Platform China (`https://api.moonshot.cn/v1`), and Kimi Open Platform overseas (`https://api.moonshot.ai/v1`). Choose the service that matches the key, or leave it on automatic detection. The first use, or **Detect service and models**, calls `/models` and fills the account's available models; the default Kimi Code model is `kimi-for-coding`. Custom service URLs remain available for compatible proxies.
-
-DeepSeek engines use the official OpenAI-compatible API. Set the Base URL to
-`https://api.deepseek.com`, create a key in the
-[DeepSeek API console](https://platform.deepseek.com/api_keys), and enter it in
-the engine settings. The default vision model is
-`deepseek-v4-flash-vision-exp`; it is used by both the image description and AI
-Agent engines.
-
-## Included engines
-
-OCR engines:
-
-* Apple Vision (OCR Server)
-* Baimiao OCR
-* Baimiao Formula Recognition
-* Baidu OCR
-* Google Gemini OCR
-* Vivo OCR (NVDACN)
-* PaddleOCR / PaddleOCR-VL
-* Ollama OCR
-* Kimi OCR
-* Text CAPTCHA recognition through RuCaptcha or 2Captcha
-* RapidOCR Text (PP-OCRv6 Small)
-* RapidOCR Table (automatic)
-
-Image description engines:
-
-* Be My Eyes / Be My AI
-* Google Gemini
-* Google Gemma
-* DeepSeek
-* Vivo Image Describer (NVDACN)
-* VIVO BlueLLM Vision (NVDACN)
-* Ollama Vision
-* Kimi
-
-AI Agent engines:
-
-* Google Gemini
-* OpenAI
-* DeepSeek
-* Vivo BlueLM Vision (NVDACN)
-* Kimi
-
-Engine availability depends on its service and configuration.
-
-The add-on includes a Windows x64 RapidOCR Small DLL. RapidOCR Text
-returns clickable text coordinates. RapidOCR Table tries bordered-table
-recognition first and falls back to SLANet for borderless or complex tables.
-It returns an HTML table in a browsable NVDA document. Neither engine uses a
-network service.
-
-## Apple Vision (OCR Server)
+### Apple Vision (OCR Server)
 
 Apple Vision (OCR Server) is a local-network OCR engine. Vis Aware sends the
-selected image to [OCR Server](https://github.com/riddleling/iOS-OCR-Server),
-an open-source iOS app that recognizes text with Apple Vision and returns text
-coordinates. No cloud OCR account is required, but the computer and iPhone must
-be able to reach each other on the same local network.
+selected image to the open-source iOS app [OCR Server](https://github.com/riddleling/iOS-OCR-Server),
+which uses Apple Vision to recognize text and return text coordinates. No cloud
+OCR account is required, but the computer and iPhone must be able to reach
+each other over the same local network.
 
-The current app requires iOS 18.4 or later. The oldest supported iPhones are
+The current app requires iOS 18.4 or later. The oldest supported models are
 iPhone XS, iPhone XS Max, iPhone XR, and iPhone SE (2nd generation).
 
 To configure the engine:
@@ -291,42 +220,66 @@ To configure the engine:
 1. Install [OCR Server from the App Store](https://apps.apple.com/us/app/ocr-server/id6749533041)
    on the iPhone.
 2. Connect the iPhone and computer to the same local network, then open OCR
-   Server. Its server starts automatically and displays the address to use.
+   Server. The server starts automatically and displays the address to use.
 3. Open `NVDA menu > Preferences > Vis Aware settings... > OCR`, enable and
-   select **Apple Vision (OCR Server)**, then enter the displayed address, such
-   as `192.168.1.10:8000`.
+   select **Apple Vision (OCR Server)**, and enter the address displayed by the
+   app, such as `192.168.1.10:8000`.
 
-OCR Server connections use unauthenticated, unencrypted HTTP. Use this engine
-only on a trusted local network; on public or untrusted networks, transmitted
-images and returned OCR results can be intercepted or modified.
+Connections to OCR Server use unauthenticated, unencrypted HTTP. Use this
+engine only on a trusted local network. On a public or untrusted network,
+transmitted images and returned OCR results could be intercepted or modified.
 
-Keep OCR Server open and the iPhone screen on while using the engine. For
-continuous operation, follow the upstream project's instructions for iOS
-Guided Access. The upstream project also documents app usage and the server API.
+Keep OCR Server open in the foreground and keep the iPhone screen awake while
+using this engine. For continuous operation, follow the upstream project's
+instructions for enabling iOS Guided Access. The upstream project also
+documents app usage and the server API.
 
-## Recommended offline setup: Gemma 4 through Ollama
+### Recommended offline setup: local models with Ollama
 
-For an offline, self-hosted setup, we recommend running a vision-capable Gemma
-4 model locally with Ollama. After the model is downloaded and the API URL
-points to the local service, Vis Aware sends images to that local service. If
-you use a remote Ollama address hosted by someone else, data is sent to that
-remote service.
+For an offline, self-hosted setup, we recommend using [Ollama](https://ollama.org/)
+to run a vision-capable model locally. After the model is downloaded and the
+API URL points to the local service, Vis Aware sends images to that service.
+
+You can enter a full API URL or a host and port, such as `localhost:11434`.
+The default API root is `http://localhost:11434/api`.
+
+Use **Fetch models** to load model names and then choose a model. If no model
+is selected, Vis Aware uses the first model returned by Ollama.
+
+The API key is optional. Ollama engines require a vision-capable model, such
+as Gemma 4. Ollama OCR provides screen coordinates only when the model returns
+valid structured OCR data.
+
+### Other engines
+
+* PaddleOCR / PaddleOCR-VL supports an AI Studio hosted task API, an AI Studio
+  deployed service, or a self-hosted PaddleOCR service.
+* Kimi engines use an OpenAI-compatible protocol. For the Kimi Open Platform,
+  enter a key created at the [Kimi Open Platform](https://platform.kimi.com/console/api-keys).
+  For the international platform, enter a key created at the [international
+  Kimi platform](https://platform.kimi.ai/console/api-keys). Do not mix an
+  endpoint with a key from another service. The default model is Kimi K3;
+  available models and reasoning options vary by endpoint and model family.
+* DeepSeek engines use an OpenAI-compatible protocol. Set the Base URL to
+  `https://api.deepseek.com`, create a key in the [DeepSeek API console](https://platform.deepseek.com/api_keys),
+  and enter it in the engine settings. The default vision model is
+  `deepseek-flash`, used by both the image description and AI Agent engines.
 
 ## Data and credentials
 
-Recognition sends the selected image and, when applicable, a prompt to the
+Recognition sends the selected image and, when applicable, the prompt to the
 service configured for the selected engine. Each AI Agent step sends a
-full-screen screenshot to the selected service; the screenshot can include
+full-screen screenshot to the selected service, and the screenshot may include
 other windows. Review the service's data policy and avoid sending sensitive
 content.
 
 On supported systems with NVDA 2026.3 or later, manual and automatic screen
-recognition can capture the original screen while Screen Curtain or NVDA's
-built-in Magnifier is active. When Windows Graphics Capture is unavailable,
-Screen Curtain must be disabled for screen recognition. The NVDACN password and
-Baimiao login session are protected with Windows DPAPI.
-Other saved API keys are stored unencrypted in the NVDA configuration. Be
-mindful of data security before creating or sharing a portable copy of NVDA.
+recognition can capture the original screen even when Screen Curtain or NVDA's
+built-in Magnifier is enabled.
+
+Some sensitive login sessions are protected with Windows DPAPI. Other saved
+API keys are stored in plain text in the NVDA configuration. Keep this in mind
+before creating or sharing a portable copy of NVDA.
 
 ## License
 
