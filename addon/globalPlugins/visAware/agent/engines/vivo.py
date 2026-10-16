@@ -22,7 +22,7 @@ class AgentEngine(BaseAgentEngine):
 
 	name = "vivo"
 	# Translators: The description of the Vivo Agent engine.
-	description = _("Vivo BlueLM Vision (NVDACN)")
+	description = _("Vivo")
 
 	_enableThinking: bool = False
 

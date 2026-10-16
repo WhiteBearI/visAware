@@ -23,8 +23,8 @@ class CustomContentRecognizer(BaseRecognizer):
 
 	name = "appleOCRServer"
 	supportsAutomaticRecognition = True
-	# Translators: The description of the Apple Vision (OCR Server) engine.
-	description = _("Apple Vision (OCR Server)")
+	# Translators: The description of the Apple Vision Server engine.
+	description = _("Apple Vision Server")
 
 	uploadBase64EncodeImage = False
 	isStreaming = False

@@ -100,7 +100,7 @@ class CustomContentRecognizer(OllamaEngineMixin, BaseRecognizer):
 	name = "ollamaOCR"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the Ollama OCR engine.
-	description = _("Ollama OCR")
+	description = _("Ollama")
 
 	uploadBase64EncodeImage = True
 	uploadImageFormat = "JPEG"

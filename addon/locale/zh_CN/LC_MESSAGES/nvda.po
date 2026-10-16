@@ -2,8 +2,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 'customOCR' '0.1.1-dev'\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2026-10-16 16:38+0800\n"
-"PO-Revision-Date: 2026-10-16 17:53+0800\n"
+"POT-Creation-Date: 2026-10-16 18:53+0800\n"
+"PO-Revision-Date: 2026-10-16 18:36+0800\n"
 "Last-Translator: Larry Wang <larry.wang.801@gmail.com>\n"
 "Language-Team: \n"
 "Language: zh_CN\n"
@@ -923,7 +923,7 @@ msgstr "模型(&M)"
 
 #: addon\globalPlugins\visAware\_kimiEngine.py:96
 #: addon\globalPlugins\visAware\_kimiEngine.py:131
-#: addon\globalPlugins\visAware\agent\engines\kimi.py:43
+#: addon\globalPlugins\visAware\agent\engines\kimi.py:42
 msgid "Auto-select (on first use)"
 msgstr "首次使用时自动选择"
 
@@ -1597,14 +1597,14 @@ msgstr "Google Gemini"
 msgid "Media &resolution"
 msgstr "媒体分辨率(&R)"
 
-#. Translators: The description of the Kimi Agent engine. "Moonshot AI" is a proper noun
-#. and should not be translated.
-#. Translators: The description of the Kimi engine. "Moonshot AI" is a proper noun
-#. and should not be translated.
-#: addon\globalPlugins\visAware\agent\engines\kimi.py:31
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:61
-msgid "Kimi (Moonshot AI)"
-msgstr "Kimi (Moonshot AI)"
+#. Translators: The description of the Kimi Agent engine.
+#. Translators: The description of the Kimi OCR engine.
+#. Translators: The description of the Kimi engine.
+#: addon\globalPlugins\visAware\agent\engines\kimi.py:30
+#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:102
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:60
+msgid "Kimi"
+msgstr "Kimi"
 
 #. Translators: The description of the OpenAI Agent engine.
 #: addon\globalPlugins\visAware\agent\engines\openai.py:30
@@ -1612,24 +1612,32 @@ msgid "OpenAI"
 msgstr "OpenAI"
 
 #. Translators: The description of the OpenAI-compatible Agent engine.
+#. Translators: The description of the OpenAI-compatible OCR engine.
+#. Translators: The description of the OpenAI-compatible image description engine.
 #: addon\globalPlugins\visAware\agent\engines\openaiCompatibleAgent.py:26
+#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:66
+#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:47
 msgid "OpenAI-compatible"
 msgstr "OpenAI 兼容"
 
 #. Translators: The description of the Vivo Agent engine.
+#. Translators: The description of the Vivo OCR engine.
+#. Translators: The description of the Vivo Image Describer engine.
 #: addon\globalPlugins\visAware\agent\engines\vivo.py:25
-msgid "Vivo BlueLM Vision (NVDACN)"
-msgstr "Vivo BlueLM Vision（NVDACN）"
+#: addon\globalPlugins\visAware\contentRecognizers\vivoOCR.py:25
+#: addon\globalPlugins\visAware\imageDescribers\vivoImageDescriber.py:29
+msgid "Vivo"
+msgstr "Vivo"
 
 #. Translators: The label for enabling model thinking in the Vivo Agent engine.
 #: addon\globalPlugins\visAware\agent\engines\vivo.py:41
 msgid "Enable model &thinking"
 msgstr "启用模型思考(&T)"
 
-#. Translators: The description of the Apple Vision (OCR Server) engine.
+#. Translators: The description of the Apple Vision Server engine.
 #: addon\globalPlugins\visAware\contentRecognizers\appleOCRServer.py:27
-msgid "Apple Vision (OCR Server)"
-msgstr "Apple Vision（OCR Server）"
+msgid "Apple Vision Server"
+msgstr "Apple Vision Server"
 
 #. Translators: The label for the OCR Server address field in the engine settings.
 #: addon\globalPlugins\visAware\contentRecognizers\appleOCRServer.py:45
@@ -1665,8 +1673,8 @@ msgstr "OCR Server 错误：{}"
 
 #. Translators: The description of the Baidu OCR engine.
 #: addon\globalPlugins\visAware\contentRecognizers\baiduOCR.py:26
-msgid "Baidu OCR"
-msgstr "百度 OCR"
+msgid "Baidu"
+msgstr "百度"
 
 #. Translators: The label for the recognition language setting.
 #: addon\globalPlugins\visAware\contentRecognizers\baiduOCR.py:48
@@ -2050,8 +2058,8 @@ msgstr "验证码识别结果为空。"
 
 #. Translators: The description of the Gemini OCR engine.
 #: addon\globalPlugins\visAware\contentRecognizers\geminiOCR.py:93
-msgid "Google Gemini OCR"
-msgstr "Google Gemini OCR"
+msgid "Gemini"
+msgstr "Gemini"
 
 #: addon\globalPlugins\visAware\contentRecognizers\geminiOCR.py:155
 msgid ""
@@ -2081,7 +2089,7 @@ msgstr "Gemini OCR 返回的结构化数据格式错误。"
 #: addon\globalPlugins\visAware\imageDescribers\deepseek.py:225
 #: addon\globalPlugins\visAware\imageDescribers\gemini.py:300
 #: addon\globalPlugins\visAware\imageDescribers\gemma.py:406
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:367
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:366
 #: addon\globalPlugins\visAware\imageDescribers\ollama.py:178
 #: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:137
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:313
@@ -2114,24 +2122,18 @@ msgstr "Kimi OCR 返回的结构化数据格式错误。"
 msgid "Kimi OCR cannot convert coordinates without the uploaded image size."
 msgstr "Kimi OCR 缺少上传图像尺寸，无法转换坐标。"
 
-#. Translators: The description of the Kimi OCR engine. "Moonshot AI" is a proper noun
-#. and should not be translated.
-#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:103
-msgid "Kimi (Moonshot AI) OCR"
-msgstr "Kimi (Moonshot AI) OCR"
-
-#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:134
+#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:133
 msgid ""
 "API key is missing. Please configure it in the Kimi OCR engine settings."
 msgstr "缺少 API 密钥。请在 Kimi OCR 引擎设置中配置。"
 
 #. Translators: An error message for an empty Kimi OCR response.
-#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:230
+#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:229
 msgid "Kimi OCR returned an empty response."
 msgstr "Kimi OCR 返回了空响应。"
 
 #. Translators: An error message for malformed Kimi OCR structured JSON.
-#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:235
+#: addon\globalPlugins\visAware\contentRecognizers\kimiOCR.py:234
 msgid "Kimi OCR returned invalid JSON."
 msgstr "Kimi OCR 返回了无效的 JSON。"
 
@@ -2151,9 +2153,11 @@ msgstr ""
 "或使用 Markdown。"
 
 #. Translators: The description of the Ollama OCR engine.
+#. Translators: The description of the Ollama image describer engine.
 #: addon\globalPlugins\visAware\contentRecognizers\ollamaOCR.py:103
-msgid "Ollama OCR"
-msgstr "Ollama OCR"
+#: addon\globalPlugins\visAware\imageDescribers\ollama.py:59
+msgid "Ollama"
+msgstr "Ollama"
 
 #. Translators: The label for the Ollama API URL field.
 #. Translators: The label for the PaddleOCR API URL field.
@@ -2182,7 +2186,7 @@ msgstr "启用流式输出(&E)"
 #: addon\globalPlugins\visAware\imageDescribers\deepseek.py:79
 #: addon\globalPlugins\visAware\imageDescribers\gemini.py:86
 #: addon\globalPlugins\visAware\imageDescribers\gemma.py:127
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:88
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:87
 #: addon\globalPlugins\visAware\imageDescribers\ollama.py:111
 #: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:73
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:87
@@ -2224,11 +2228,6 @@ msgid ""
 "size."
 msgstr "OpenAI 兼容 OCR 缺少上传图像尺寸，无法转换坐标。"
 
-#. Translators: The description of the OpenAI-compatible OCR engine.
-#: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:66
-msgid "OpenAI-compatible OCR"
-msgstr "OpenAI 兼容 OCR"
-
 #: addon\globalPlugins\visAware\contentRecognizers\openaiCompatibleOCR.py:165
 msgid "OpenAI-compatible OCR returned an empty response."
 msgstr "OpenAI 兼容 OCR 返回了空响应。"
@@ -2246,8 +2245,8 @@ msgstr "缺少模型。请在 OpenAI 兼容 OCR 设置中配置。"
 
 #. Translators: The description of the PaddleOCR engine.
 #: addon\globalPlugins\visAware\contentRecognizers\paddleOCR.py:48
-msgid "PaddleOCR / PaddleOCR-VL"
-msgstr "PaddleOCR / PaddleOCR-VL"
+msgid "PaddleOCR"
+msgstr "PaddleOCR"
 
 #. Translators: The label for selecting the PaddleOCR service type.
 #: addon\globalPlugins\visAware\contentRecognizers\paddleOCR.py:99
@@ -2345,18 +2344,13 @@ msgstr "未检测到可靠的表格结构。"
 
 #. Translators: The name of the bundled offline RapidOCR text engine.
 #: addon\globalPlugins\visAware\contentRecognizers\rapidOCR.py:274
-msgid "RapidOCR Text (PP-OCRv6 Small)"
-msgstr "RapidOCR 文字（PP-OCRv6 Small）"
+msgid "RapidOCR Text"
+msgstr "RapidOCR 文字"
 
-#. Translators: The name of the bundled automatic RapidOCR table engine.
+#. Translators: The name of the bundled RapidOCR table engine.
 #: addon\globalPlugins\visAware\contentRecognizers\rapidOCR.py:283
-msgid "RapidOCR Table (automatic)"
-msgstr "RapidOCR 表格（自动）"
-
-#. Translators: The description of the Vivo OCR engine.
-#: addon\globalPlugins\visAware\contentRecognizers\vivoOCR.py:25
-msgid "Vivo OCR (NVDACN)"
-msgstr "Vivo OCR（NVDACN）"
+msgid "RapidOCR Table"
+msgstr "RapidOCR 表格"
 
 #. Translators: The label for the recognition mode setting.
 #: addon\globalPlugins\visAware\contentRecognizers\vivoOCR.py:47
@@ -2732,10 +2726,10 @@ msgstr "PaddleOCR 返回了无效响应。"
 msgid "PaddleOCR API error: {}"
 msgstr "PaddleOCR API 错误：{}"
 
-#. Translators: The Be My Eyes image description engine.
+#. Translators: The Be My AI image description engine.
 #: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:26
-msgid "Be My Eyes / Be My AI"
-msgstr "Be My Eyes / Be My AI"
+msgid "Be My AI"
+msgstr "Be My AI"
 
 #. Translators: Account management button; {account} is the saved name and email.
 #: addon\globalPlugins\visAware\imageDescribers\beMyEyes.py:40
@@ -2802,7 +2796,7 @@ msgstr "DeepSeek 响应因内容过滤而被阻止。"
 
 #. Translators: The label for an engine setting to enable streaming output.
 #: addon\globalPlugins\visAware\imageDescribers\gemini.py:73
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:80
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:79
 #: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:67
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:76
 msgid "&Enable streaming output (if available)"
@@ -2869,22 +2863,22 @@ msgstr "缺少 API 密钥。请在 Gemma 引擎设置中配置。"
 msgid "Gemma API error: {}"
 msgstr "Gemma API 错误：{}"
 
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:127
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:126
 msgid "API key is missing. Please configure it in the Kimi engine settings."
 msgstr "缺少 API 密钥。请在 Kimi 引擎设置中配置。"
 
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:186
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:185
 msgid "Kimi returned a successful but empty response."
 msgstr "Kimi 返回了成功但为空的响应。"
 
 #. Translators: Reported when the required Kimi follow-up context exceeds the model limit.
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:217
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:216
 msgid "The Kimi conversation is too large for the selected model."
 msgstr "Kimi 对话内容过长，超出了所选模型的上下文限制。"
 
 #. Translators: Reported when Kimi cannot continue without preserved reasoning.
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:250
-#: addon\globalPlugins\visAware\imageDescribers\kimi.py:258
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:249
+#: addon\globalPlugins\visAware\imageDescribers\kimi.py:257
 msgid "Kimi follow-up history is missing the complete assistant response."
 msgstr "Kimi 追问历史中缺少完整的助手响应。"
 
@@ -2898,16 +2892,6 @@ msgstr ""
 "只描述所附图像，为屏幕阅读器用户提供说明。如果图像中有清晰可读的文字，请尽可"
 "能准确地转写；如果文字不清晰，请如实说明，不要猜测。不要将用户的提示词或这些"
 "说明引用或描述为图像中的文字。"
-
-#. Translators: The description of the Ollama image describer engine.
-#: addon\globalPlugins\visAware\imageDescribers\ollama.py:59
-msgid "Ollama Vision"
-msgstr "Ollama Vision"
-
-#. Translators: The description of the OpenAI-compatible image description engine.
-#: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:47
-msgid "OpenAI-compatible image description"
-msgstr "OpenAI 兼容图像描述"
 
 #: addon\globalPlugins\visAware\imageDescribers\openaiCompatibleImage.py:158
 msgid "OpenAI-compatible service returned a successful but empty response."
@@ -2927,18 +2911,13 @@ msgstr "缺少模型。请在 OpenAI 兼容图像描述设置中配置。"
 
 #. Translators: The description of the VIVO BlueLLM engine.
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:38
-msgid "VIVO BlueLLM Vision (NVDACN)"
-msgstr "VIVO BlueLLM Vision（NVDACN）"
+msgid "VIVO BlueLLM"
+msgstr "VIVO BlueLLM"
 
 #. Translators: Label for the AI model temperature setting.
 #: addon\globalPlugins\visAware\imageDescribers\vivoBlueLLM.py:66
 msgid "&Temperature"
 msgstr "温度(&T)"
-
-#. Translators: The description of the Vivo Image Describer engine.
-#: addon\globalPlugins\visAware\imageDescribers\vivoImageDescriber.py:29
-msgid "Vivo Image Describer (NVDACN)"
-msgstr "Vivo Image Describer（NVDACN）"
 
 #. Translators: Label for a setting to set the minimum confidence score.
 #: addon\globalPlugins\visAware\imageDescribers\vivoImageDescriber.py:61
@@ -3185,6 +3164,57 @@ msgstr ""
 "### 0.9.10\n"
 "\n"
 "* 修复微软拼音候选项触发自动识别的问题。"
+
+#~ msgid "Vivo BlueLM Vision (NVDACN)"
+#~ msgstr "Vivo BlueLM Vision（NVDACN）"
+
+#~ msgid "Kimi (Moonshot AI)"
+#~ msgstr "Kimi (Moonshot AI)"
+
+#~ msgid "Apple Vision (OCR Server)"
+#~ msgstr "Apple Vision（OCR Server）"
+
+#~ msgid "Baidu OCR"
+#~ msgstr "百度 OCR"
+
+#~ msgid "Google Gemini OCR"
+#~ msgstr "Google Gemini OCR"
+
+#~ msgid "Kimi (Moonshot AI) OCR"
+#~ msgstr "Kimi (Moonshot AI) OCR"
+
+#~ msgid "Ollama OCR"
+#~ msgstr "Ollama OCR"
+
+#~ msgid "OpenAI-compatible OCR"
+#~ msgstr "OpenAI 兼容 OCR"
+
+#~ msgid "PaddleOCR / PaddleOCR-VL"
+#~ msgstr "PaddleOCR / PaddleOCR-VL"
+
+#~ msgid "RapidOCR Text (PP-OCRv6 Small)"
+#~ msgstr "RapidOCR 文字（PP-OCRv6 Small）"
+
+#~ msgid "RapidOCR Table (automatic)"
+#~ msgstr "RapidOCR 表格（自动）"
+
+#~ msgid "Vivo OCR (NVDACN)"
+#~ msgstr "Vivo OCR（NVDACN）"
+
+#~ msgid "Be My Eyes / Be My AI"
+#~ msgstr "Be My Eyes / Be My AI"
+
+#~ msgid "Ollama Vision"
+#~ msgstr "Ollama Vision"
+
+#~ msgid "OpenAI-compatible image description"
+#~ msgstr "OpenAI 兼容图像描述"
+
+#~ msgid "VIVO BlueLLM Vision (NVDACN)"
+#~ msgstr "VIVO BlueLLM Vision（NVDACN）"
+
+#~ msgid "Vivo Image Describer (NVDACN)"
+#~ msgstr "Vivo Image Describer（NVDACN）"
 
 #~ msgid "Kimi returned an invalid response."
 #~ msgstr "Kimi 返回了无效响应。"

@@ -56,9 +56,8 @@ class CustomContentRecognizer(KimiEngineMixin, BaseDescriber):
 
 	name = "kimi"
 	supportsAutomaticRecognition = True
-	# Translators: The description of the Kimi engine. "Moonshot AI" is a proper noun
-	# and should not be translated.
-	description = _("Kimi (Moonshot AI)")
+	# Translators: The description of the Kimi engine.
+	description = _("Kimi")
 
 	uploadBase64EncodeImage = True
 	supportsStreaming = True

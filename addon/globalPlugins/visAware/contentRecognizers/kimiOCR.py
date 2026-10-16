@@ -98,9 +98,8 @@ class CustomContentRecognizer(KimiEngineMixin, BaseRecognizer):
 
 	name = "kimiOCR"
 	supportsAutomaticRecognition = True
-	# Translators: The description of the Kimi OCR engine. "Moonshot AI" is a proper noun
-	# and should not be translated.
-	description = _("Kimi (Moonshot AI) OCR")
+	# Translators: The description of the Kimi OCR engine.
+	description = _("Kimi")
 
 	uploadBase64EncodeImage = True
 	uploadImageFormat = "JPEG"

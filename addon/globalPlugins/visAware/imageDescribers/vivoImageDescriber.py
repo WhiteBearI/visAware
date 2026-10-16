@@ -26,7 +26,7 @@ class CustomContentRecognizer(BaseDescriber):
 	name = "vivoImageDescriber"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the Vivo Image Describer engine.
-	description = _("Vivo Image Describer (NVDACN)")
+	description = _("Vivo")
 
 	_domain = "api-ai.vivo.com.cn"
 	_uri = "/get_single_image_cn_brief_caption"

@@ -161,9 +161,9 @@ falls back to the URL if a screenshot cannot be captured.
 
 ## Supported engines
 
-### Be My Eyes / Be My AI
+### Be My AI
 
-Be My Eyes / Be My AI can describe an image and answer follow-up questions
+Be My AI can describe an image and answer follow-up questions
 about the same image. To use it, open the image description settings, choose
 **Log in to Be My Eyes...**, and enter your Be My Eyes email address and
 password. Vis Aware does not store your password.
@@ -204,9 +204,9 @@ change or become unavailable without notice. Use it at your own risk; Vis Aware
 is not responsible for account restrictions, service changes, data loss, or
 other consequences of using this interface. Follow Baimiao's applicable terms.
 
-### Apple Vision (OCR Server)
+### Apple Vision Server
 
-Apple Vision (OCR Server) is a local-network OCR engine. Vis Aware sends the
+Apple Vision Server is a local-network OCR engine. Vis Aware sends the
 selected image to the open-source iOS app [OCR Server](https://github.com/riddleling/iOS-OCR-Server),
 which uses Apple Vision to recognize text and return text coordinates. No cloud
 OCR account is required, but the computer and iPhone must be able to reach
@@ -222,7 +222,7 @@ To configure the engine:
 2. Connect the iPhone and computer to the same local network, then open OCR
    Server. The server starts automatically and displays the address to use.
 3. Open `NVDA menu > Preferences > Vis Aware settings... > OCR`, enable and
-   select **Apple Vision (OCR Server)**, and enter the address displayed by the
+   select **Apple Vision Server**, and enter the address displayed by the
    app, such as `192.168.1.10:8000`.
 
 Connections to OCR Server use unauthenticated, unencrypted HTTP. Use this
@@ -247,13 +247,14 @@ Use **Fetch models** to load model names and then choose a model. If no model
 is selected, Vis Aware uses the first model returned by Ollama.
 
 The API key is optional. Ollama engines require a vision-capable model, such
-as Gemma 4. Ollama OCR provides screen coordinates only when the model returns
+as Gemma 4. Ollama provides screen coordinates for OCR only when the model returns
 valid structured OCR data.
 
 ### Other engines
 
-* PaddleOCR / PaddleOCR-VL supports an AI Studio hosted task API, an AI Studio
-  deployed service, or a self-hosted PaddleOCR service.
+* PaddleOCR supports an AI Studio hosted task API, an AI Studio deployed
+  service, or a self-hosted PaddleOCR service. Choose PaddleOCR or PaddleOCR-VL
+  as the service type in the engine settings.
 * Kimi engines use an OpenAI-compatible protocol. For the Kimi Open Platform,
   enter a key created at the [Kimi Open Platform](https://platform.kimi.com/console/api-keys).
   For the international platform, enter a key created at the [international

@@ -23,7 +23,7 @@ class CustomContentRecognizer(BaseRecognizer):
 	name = "baiduOCR"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the Baidu OCR engine.
-	description = _("Baidu OCR")
+	description = _("Baidu")
 
 	_accessToken: str = ""
 	textResult: bool = False

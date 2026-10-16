@@ -63,7 +63,7 @@ class CustomContentRecognizer(OpenAICompatibleEngineMixin, KnownModelsMixin, Bas
 	name = "openaiCompatibleOCR"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the OpenAI-compatible OCR engine.
-	description = _("OpenAI-compatible OCR")
+	description = _("OpenAI-compatible")
 	uploadBase64EncodeImage = True
 	uploadImageFormat = "JPEG"
 	supportsStreaming = False

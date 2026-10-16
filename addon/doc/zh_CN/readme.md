@@ -99,9 +99,9 @@ AI Agent 每一步都会向所选服务发送全屏截图，其中可能包含�
 
 ## 支持的识别引擎
 
-### Be My Eyes / Be My AI
+### Be My AI
 
-Be My Eyes / Be My AI 可以描述图像，并回答关于同一图像的追问。使用时，请打开图像描述设置，选择**登录 Be My Eyes...**，然后输入 Be My Eyes 账户的电子邮箱和密码。Vis Aware 不会保存你的密码。
+Be My AI 可以描述图像，并回答关于同一图像的追问。使用时，请打开图像描述设置，选择**登录 Be My Eyes...**，然后输入 Be My Eyes 账户的电子邮箱和密码。Vis Aware 不会保存你的密码。
 
 该引擎支持手动描述和追问，不支持自动识别、自定义提示词和流式输出。如果发送追问后将其取消，请重新识别图像再提出其他问题，否则迟到的回复可能会被当作后续问题的答案。
 
@@ -117,9 +117,9 @@ Vis Aware 会保存用于识别此设备的固定标识，以及设置按钮显�
 
 此集成使用白描的非公开 Web 接口。该接口可能在不另行通知的情况下变更或停止服务。使用风险由使用者自行承担；对于账户限制、服务变更、数据丢失或其他因使用该接口产生的后果，Vis Aware 不承担责任。请遵守白描适用的相关条款。
 
-### Apple Vision (OCR Server)
+### Apple Vision Server
 
-Apple Vision (OCR Server) 是一个局域网 OCR 引擎。Vis Aware 会将所选图像发送到开源 iOS 应用 [OCR Server](https://github.com/riddleling/iOS-OCR-Server)，由该应用使用 Apple Vision 识别文字并返回文字坐标。该引擎不需要云端 OCR 账户，但电脑和 iPhone 必须能够通过同一局域网相互访问。
+Apple Vision Server 是一个局域网 OCR 引擎。Vis Aware 会将所选图像发送到开源 iOS 应用 [OCR Server](https://github.com/riddleling/iOS-OCR-Server)，由该应用使用 Apple Vision 识别文字并返回文字坐标。该引擎不需要云端 OCR 账户，但电脑和 iPhone 必须能够通过同一局域网相互访问。
 
 当前版本的应用要求 iOS 18.4 或更高版本，支持的最早机型为 iPhone XS、iPhone XS Max、iPhone XR 和第二代 iPhone SE。
 
@@ -127,7 +127,7 @@ Apple Vision (OCR Server) 是一个局域网 OCR 引擎。Vis Aware 会将所选
 
 1. 在 iPhone 上从 [App Store](https://apps.apple.com/us/app/ocr-server/id6749533041) 安装 OCR Server。
 2. 将 iPhone 和电脑连接到同一局域网，然后打开 OCR Server。服务器会自动启动并显示连接地址。
-3. 打开 `NVDA 菜单 > 选项 > Vis Aware 设置... > OCR`，启用并选择 **Apple Vision (OCR Server)**，然后填写应用显示的地址，例如 `192.168.1.10:8000`。
+3. 打开 `NVDA 菜单 > 选项 > Vis Aware 设置... > OCR`，启用并选择 **Apple Vision Server**，然后填写应用显示的地址，例如 `192.168.1.10:8000`。
 
 与 OCR Server 的连接使用未经身份验证且未加密的 HTTP。请仅在可信局域网中使用此引擎；在公共或不可信网络上，上传的图像和返回的 OCR 结果可能被截获或篡改。
 
@@ -141,11 +141,11 @@ Apple Vision (OCR Server) 是一个局域网 OCR 引擎。Vis Aware 会将所选
 
 使用**获取模型**加载模型名称，然后选择模型。如果未选择模型，将使用 Ollama 返回的第一个模型。
 
-API 密钥是可选的。Ollama 引擎需要支持视觉能力的模型，例如 Gemma 4；仅当模型返回有效的结构化 OCR 数据时，Ollama OCR 才会提供屏幕坐标。
+API 密钥是可选的。Ollama 引擎需要支持视觉能力的模型，例如 Gemma 4；仅当模型返回有效的结构化 OCR 数据时，Ollama 才会提供屏幕坐标。
 
 ### 其他引擎
 
-* PaddleOCR / PaddleOCR-VL 支持 AI Studio 托管任务 API、AI Studio 部署服务和自托管 PaddleOCR 服务。
+* PaddleOCR 支持 AI Studio 托管任务 API、AI Studio 部署服务和自托管 PaddleOCR 服务；可在引擎设置中选择 PaddleOCR 或 PaddleOCR-VL 作为服务类型。
 * Kimi 引擎使用 OpenAI 兼容协议。使用 Kimi 开放平台请填写在 [Kimi 开放平台](https://platform.kimi.com/console/api-keys) 创建的密钥；使用国际平台时，请填写在 [国际 Kimi 平台](https://platform.kimi.ai/console/api-keys) 创建的密钥。请勿混用端点和密钥。默认模型为 Kimi K3；可用模型和思考选项会随端点及模型系列而异。
 * DeepSeek 引擎使用 OpenAI 兼容协议。请将 Base URL 设置为 `https://api.deepseek.com`，在 [DeepSeek API 控制台](https://platform.deepseek.com/api_keys) 创建密钥并填写到引擎设置中。默认视觉模型为 `deepseek-flash`，图像描述和 AI Agent 引擎均使用该模型。
 

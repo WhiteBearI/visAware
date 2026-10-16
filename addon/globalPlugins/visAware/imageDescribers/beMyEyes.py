@@ -22,8 +22,8 @@ addonHandler.initTranslation()
 
 class CustomContentRecognizer(BaseDescriber):
 	name = "beMyEyes"
-	# Translators: The Be My Eyes image description engine.
-	description = _("Be My Eyes / Be My AI")
+	# Translators: The Be My AI image description engine.
+	description = _("Be My AI")
 	uploadBase64EncodeImage = False
 	supportsQuestions = True
 	engineConfigSpec = {

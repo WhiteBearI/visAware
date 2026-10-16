@@ -45,7 +45,7 @@ class CustomContentRecognizer(BaseRecognizer):
 	name = "paddleOCR"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the PaddleOCR engine.
-	description = _("PaddleOCR / PaddleOCR-VL")
+	description = _("PaddleOCR")
 
 	uploadBase64EncodeImage = True
 	uploadImageFormat = "PNG"

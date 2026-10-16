@@ -35,7 +35,7 @@ class CustomContentRecognizer(BaseDescriber):
 	name = "vivoBlueLLM"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the VIVO BlueLLM engine.
-	description = _("VIVO BlueLLM Vision (NVDACN)")
+	description = _("VIVO BlueLLM")
 
 	# --- Engine State ---
 	supportsStreaming = True

@@ -26,9 +26,8 @@ class AgentEngine(KimiEngineMixin, KnownModelsMixin, BaseAgentEngine):
 	"""Kimi-backed computer-use agent engine."""
 
 	name = "kimi"
-	# Translators: The description of the Kimi Agent engine. "Moonshot AI" is a proper noun
-	# and should not be translated.
-	description = _("Kimi (Moonshot AI)")
+	# Translators: The description of the Kimi Agent engine.
+	description = _("Kimi")
 
 	@property
 	def supportedSettings(self) -> list[Any]:

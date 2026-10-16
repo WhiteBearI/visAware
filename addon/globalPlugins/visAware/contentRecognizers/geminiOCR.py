@@ -90,7 +90,7 @@ class CustomContentRecognizer(GeminiEngineMixin, BaseRecognizer):
 	name = "geminiOCR"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the Gemini OCR engine.
-	description = _("Google Gemini OCR")
+	description = _("Gemini")
 
 	uploadBase64EncodeImage = True
 	uploadImageFormat = "JPEG"

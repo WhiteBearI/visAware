@@ -22,7 +22,7 @@ class CustomContentRecognizer(BaseRecognizer):
 	name = "vivoOCR"
 	supportsAutomaticRecognition = True
 	# Translators: The description of the Vivo OCR engine.
-	description = _("Vivo OCR (NVDACN)")
+	description = _("Vivo")
 
 	_domain = "api-ai.vivo.com.cn"
 	_uri = "/ocr/general_recognition"
