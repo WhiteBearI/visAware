@@ -271,7 +271,7 @@ class CustomContentRecognizer(_RapidOCRRecognizer):
 
 	name = "rapidOCR"
 	# Translators: The name of the bundled offline RapidOCR text engine.
-	description = _("RapidOCR Text")
+	description = _("RapidOCR Text (offline)")
 
 
 class RapidOCRTableRecognizer(_RapidOCRRecognizer):
@@ -279,5 +279,5 @@ class RapidOCRTableRecognizer(_RapidOCRRecognizer):
 
 	name = "rapidOCRTable"
 	recognizesTables = True
-	# Translators: The name of the bundled RapidOCR table engine.
-	description = _("RapidOCR Table")
+	# Translators: The name of the bundled offline RapidOCR table engine.
+	description = _("RapidOCR Table (offline)")
