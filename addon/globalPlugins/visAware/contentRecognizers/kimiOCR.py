@@ -180,7 +180,7 @@ class CustomContentRecognizer(KimiEngineMixin, BaseRecognizer):
 			OpenAICompatibleSettings(
 				apiKey=self.apiKey,
 				baseUrl=self._resolvedBaseUrl or self.baseUrl,
-			)
+			),
 		)
 		return client.requestParams(
 			payload,

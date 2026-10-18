@@ -139,7 +139,7 @@ class CustomContentRecognizer(OpenAICompatibleEngineMixin, BaseDescriber):
 				apiKey=self.apiKey,
 				baseUrl=self.baseUrl,
 				chatCompletionsPath="/chat/completions",
-			)
+			),
 		).requestParams(payload, timeout=REQUEST_TIMEOUT)
 
 	def _buildMessages(
@@ -195,7 +195,7 @@ class CustomContentRecognizer(OpenAICompatibleEngineMixin, BaseDescriber):
 				apiKey=self.apiKey,
 				baseUrl=self.baseUrl,
 				chatCompletionsPath="/chat/completions",
-			)
+			),
 		).requestParams(payload, timeout=REQUEST_TIMEOUT)
 
 	def askQuestion(

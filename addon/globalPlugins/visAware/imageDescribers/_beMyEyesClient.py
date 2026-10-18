@@ -232,8 +232,8 @@ class BeMyEyesClient:
 				raise ApiError(
 					_(
 						"A previous Be My Eyes question is still pending or was interrupted. "
-						"Recognize the image again before asking another question."
-					)
+						"Recognize the image again before asking another question.",
+					),
 				)
 			_pendingQuestions.add(chatId)
 		submitted = answered = False
@@ -277,7 +277,11 @@ class BeMyEyesClient:
 			if stopped is not None and stopped.is_set():
 				return ""
 			return self._request(
-				method, GATEWAY_BASE_URL + "socket/", params=params, data=data, session=session
+				method,
+				GATEWAY_BASE_URL + "socket/",
+				params=params,
+				data=data,
+				session=session,
 			).text
 
 	@contextmanager
@@ -298,7 +302,10 @@ class BeMyEyesClient:
 		events: Queue[list[Any] | Exception] = Queue()
 		stopped = Event()
 		reader = Thread(
-			target=self._pollGateway, args=(sid, stopped, events), name="BeMyEyesGateway", daemon=True
+			target=self._pollGateway,
+			args=(sid, stopped, events),
+			name="BeMyEyesGateway",
+			daemon=True,
 		)
 		try:
 			if self._gatewayRequest("POST", sid, "40", session=session) != "ok":
@@ -341,7 +348,7 @@ class BeMyEyesClient:
 			with requests.Session() as session:
 				while not stopped.is_set():
 					for packet in self._gatewayRequest("GET", sid, stopped=stopped, session=session).split(
-						chr(30)
+						chr(30),
 					):
 						if stopped.is_set():
 							return

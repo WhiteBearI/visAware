@@ -62,7 +62,10 @@ class OpenAICompatibleEngineMixin:
 			setKnownModels([])
 
 	def _openAICompatibleSettings(
-		self, *, includeFetch: bool = True, editableModel: bool = True
+		self,
+		*,
+		includeFetch: bool = True,
+		editableModel: bool = True,
 	) -> list[Any]:
 		from .engineSettings import (
 			ButtonEngineSetting,
@@ -99,7 +102,7 @@ class OpenAICompatibleEngineMixin:
 				# Translators: The label for an OpenAI-compatible model.
 				displayNameWithAccelerator=_("&Model"),
 				optionsPropertyName="availableModels",
-			)
+			),
 		)
 		return settings
 
@@ -131,7 +134,7 @@ class OpenAICompatibleEngineMixin:
 				return
 			self._setKnownModels(models)
 			ui.message(
-				_("{engine} models loaded: {count}").format(engine=self.description, count=len(models))
+				_("{engine} models loaded: {count}").format(engine=self.description, count=len(models)),
 			)
 
 		runSettingsAction(
@@ -141,8 +144,9 @@ class OpenAICompatibleEngineMixin:
 			onSuccess,
 			lambda message: ui.message(
 				_("Could not fetch {engine} models: {message}").format(
-					engine=self.description, message=message
-				)
+					engine=self.description,
+					message=message,
+				),
 			),
 			lambda: key == (self.apiKey, self.baseUrl),
 		)

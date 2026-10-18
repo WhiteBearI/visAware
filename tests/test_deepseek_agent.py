@@ -405,9 +405,9 @@ class DeepSeekAgentTestCase(unittest.TestCase):
 						"name": "agent_decision",
 						"call_id": "call-1",
 						"arguments": {"status": "finish", "message": "Done"},
-					}
+					},
 				],
-			}
+			},
 		)
 		client = module.DeepSeekAgentClient(
 			module.DeepSeekAgentSettings(
@@ -416,7 +416,7 @@ class DeepSeekAgentTestCase(unittest.TestCase):
 				model="deepseek-flash",
 				imageQuality=90,
 				source="test",
-			)
+			),
 		)
 		client.nextAction("Task", _Screenshot(imageBase64="private-screenshot"), [])
 		self.assertTrue(messages)

@@ -78,7 +78,7 @@ def listGeminiModelNames(apiKey: str, family: str = "gemini") -> list[str]:
 			for model in models
 			if isinstance(model, dict) and _isSelectableModel(model, family)
 			for modelId in [_modelId(model)]
-		)
+		),
 	)
 
 
@@ -144,7 +144,7 @@ class GeminiEngineMixin(KnownModelsMixin):
 				return
 			self._setKnownModels(models)
 			ui.message(
-				_("{engine} models loaded: {count}").format(engine=self.description, count=len(models))
+				_("{engine} models loaded: {count}").format(engine=self.description, count=len(models)),
 			)
 
 		runSettingsAction(
@@ -154,8 +154,9 @@ class GeminiEngineMixin(KnownModelsMixin):
 			onSuccess,
 			lambda message: ui.message(
 				_("Could not fetch {engine} models: {message}").format(
-					engine=self.description, message=message
-				)
+					engine=self.description,
+					message=message,
+				),
 			),
 			lambda: key == self.apiKey,
 		)

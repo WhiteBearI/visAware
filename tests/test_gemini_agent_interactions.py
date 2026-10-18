@@ -117,11 +117,11 @@ def _install_module_stubs() -> None:
 def load_gemini_module():
 	load_gemini_models_module()
 	sys.modules["addon.globalPlugins.visAware"].__path__ = [
-		str(Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware")
+		str(Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware"),
 	]
 	loggingPath = Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware/requestLogging.py"
 	loggingSpec = importlib.util.spec_from_file_location(
-		"addon.globalPlugins.visAware.requestLogging", loggingPath
+		"addon.globalPlugins.visAware.requestLogging", loggingPath,
 	)
 	loggingModule = importlib.util.module_from_spec(loggingSpec)
 	sys.modules[loggingSpec.name] = loggingModule
@@ -166,10 +166,10 @@ def load_gemini_engine_module():
 	settingsModule.TextInputEngineSetting = settingsModule.ButtonEngineSetting
 	sys.modules[settingsModule.__name__] = settingsModule
 	_load_module(
-		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py"
+		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py",
 	)
 	_load_module(
-		"addon.globalPlugins.visAware._geminiEngine", "addon/globalPlugins/visAware/_geminiEngine.py"
+		"addon.globalPlugins.visAware._geminiEngine", "addon/globalPlugins/visAware/_geminiEngine.py",
 	)
 	baseModule = types.ModuleType("addon.globalPlugins.visAware.agent.engine")
 	baseModule.BaseAgentEngine = type(

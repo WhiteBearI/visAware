@@ -143,7 +143,7 @@ class OpenAICompatibleClient:
 				item["id"].strip()
 				for item in payload["data"]
 				if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"].strip()
-			)
+			),
 		)
 
 
@@ -432,34 +432,34 @@ class ChatCompletionStreamState:
 		if not self._sawDone:
 			# Translators: Reported when a OpenAI-compatible service stream ends without its completion marker.
 			raise StreamIncompleteError(
-				_("OpenAI-compatible service streaming response ended before completion.")
+				_("OpenAI-compatible service streaming response ended before completion."),
 			)
 		if self._finishReason is None:
 			# Translators: Reported when a OpenAI-compatible service stream does not provide a finish reason.
 			raise StreamIncompleteError(
-				_("OpenAI-compatible service streaming response did not include a finish reason.")
+				_("OpenAI-compatible service streaming response did not include a finish reason."),
 			)
 		if self._finishReason == "length":
 			# Translators: Reported when OpenAI-compatible service stops because the output token limit was reached.
 			raise StreamIncompleteError(
-				_("OpenAI-compatible service response was truncated at the token limit.")
+				_("OpenAI-compatible service response was truncated at the token limit."),
 			)
 		if self._finishReason not in SUPPORTED_FINISH_REASONS:
 			# Translators: An error for an unsupported OpenAI-compatible service completion finish reason.
 			raise StreamIncompleteError(
-				_("OpenAI-compatible service returned an unsupported completion result.")
+				_("OpenAI-compatible service returned an unsupported completion result."),
 			)
 		if self._finishReason == "tool_calls":
 			if not self._toolCalls:
 				# Translators: Reported when a OpenAI-compatible service stream claims to call a tool but supplies none.
 				raise StreamIncompleteError(
-					_("OpenAI-compatible service streaming response contained no tool call.")
+					_("OpenAI-compatible service streaming response contained no tool call."),
 				)
 		else:
 			if self._toolCalls:
 				# Translators: Reported when a OpenAI-compatible service stream unexpectedly includes a tool call.
 				raise StreamIncompleteError(
-					_("OpenAI-compatible service streaming response returned an unexpected tool call.")
+					_("OpenAI-compatible service streaming response returned an unexpected tool call."),
 				)
 		self._validateToolCalls()
 		if self._malformed:

@@ -53,7 +53,7 @@ PLAIN_OCR_PROMPT = (
 
 _MALFORMED_STRUCTURED_DATA_MESSAGE = _("OpenAI-compatible OCR returned malformed structured data.")
 _MISSING_IMAGE_SIZE_MESSAGE = _(
-	"OpenAI-compatible OCR cannot convert coordinates without the uploaded image size."
+	"OpenAI-compatible OCR cannot convert coordinates without the uploaded image size.",
 )
 
 

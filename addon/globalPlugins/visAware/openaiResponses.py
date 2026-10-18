@@ -95,5 +95,5 @@ class ResponsesClient:
 				item["id"].strip()
 				for item in models
 				if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"].strip()
-			}
+			},
 		)

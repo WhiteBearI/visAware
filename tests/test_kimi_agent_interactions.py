@@ -189,13 +189,13 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 			with self.subTest(baseUrl=baseUrl):
 				self.assertEqual(
 					sys.modules["addon.globalPlugins.visAware.openaiCompatible"].buildChatCompletionsUrl(
-						baseUrl
+						baseUrl,
 					),
 					expectedUrl,
 				)
 		self.assertEqual(
 			sys.modules["addon.globalPlugins.visAware.openaiCompatible"].buildModelsUrl(
-				"https://api.kimi.com/coding/v1/chat/completions"
+				"https://api.kimi.com/coding/v1/chat/completions",
 			),
 			"https://api.kimi.com/coding/v1/models",
 		)
@@ -289,13 +289,13 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 		networkModule.sendRequest = sendRequest
 		self.assertEqual(
 			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
-				"secret", "auto", "https://proxy.example/v1"
+				"secret", "auto", "https://proxy.example/v1",
 			),
 			("https://proxy.example/v1", ["text-only", "kimi-for-coding"]),
 		)
 		self.assertEqual(
 			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
-				"secret", "kimiCodeCn"
+				"secret", "kimiCodeCn",
 			),
 			("https://api.kimi.com/coding/v1", ["kimi-for-coding"]),
 		)
@@ -311,7 +311,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 		load_kimi_agent_module()
 		networkModule = sys.modules["addon.globalPlugins.visAware.network"]
 		networkModule.sendRequest = lambda *args, **kwargs: self.fail(
-			"manual custom models should not probe /models"
+			"manual custom models should not probe /models",
 		)
 		self.assertEqual(
 			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
@@ -335,7 +335,7 @@ class KimiAgentInteractionsTestCase(unittest.TestCase):
 
 		networkModule.sendRequest = sendRequest
 		with self.assertRaisesRegex(
-			sys.modules["addon.globalPlugins.visAware.exceptions"].ApiError, "Enter a model name manually"
+			sys.modules["addon.globalPlugins.visAware.exceptions"].ApiError, "Enter a model name manually",
 		):
 			sys.modules["addon.globalPlugins.visAware.kimiConnection"].resolveKimiConnection(
 				"secret",

@@ -104,7 +104,7 @@ def _install_module_stubs() -> None:
 def load_openai_module():
 	_install_module_stubs()
 	sys.modules["addon.globalPlugins.visAware"].__path__ = [
-		str(Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware")
+		str(Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware"),
 	]
 	modulePath = (
 		Path(__file__).resolve().parents[1] / "addon" / "globalPlugins" / "visAware" / "agent" / "openai.py"

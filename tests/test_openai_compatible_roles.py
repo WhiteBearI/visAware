@@ -49,9 +49,9 @@ def test_agent_uses_non_streaming_function_tool_call(monkeypatch):
 							},
 						],
 					},
-				}
+				},
 			],
-		}
+		},
 	)
 	calls = []
 	monkeypatch.setattr(
@@ -61,8 +61,8 @@ def test_agent_uses_non_streaming_function_tool_call(monkeypatch):
 	)
 	client = module.OpenAICompatibleAgentClient(
 		module.OpenAICompatibleAgentSettings(
-			apiKey="secret", baseUrl="https://example.test/v1", model="vision"
-		)
+			apiKey="secret", baseUrl="https://example.test/v1", model="vision",
+		),
 	)
 	decision = client.nextAction("finish the task", module.Screenshot(), [])
 
@@ -153,8 +153,8 @@ def test_plain_ocr_preserves_json_like_visible_text():
 			{
 				"finish_reason": "stop",
 				"message": {"role": "assistant", "content": '{"lines":[]}'},
-			}
-		]
+			},
+		],
 	}
 
 	assert engine.extractText(response) == '{"lines":[]}'

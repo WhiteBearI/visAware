@@ -30,7 +30,11 @@ def buildGenerateContentUrl(model: str, stream: bool) -> str:
 
 
 def buildGenerateContentRequest(
-	apiKey: str, model: str, payload: dict[str, Any], *, stream: bool = False
+	apiKey: str,
+	model: str,
+	payload: dict[str, Any],
+	*,
+	stream: bool = False,
 ) -> dict[str, Any]:
 	return {
 		"method": "POST",

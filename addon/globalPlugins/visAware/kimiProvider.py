@@ -30,7 +30,7 @@ KIMI_SERVICE_ENDPOINTS = OrderedDict(
 		"kimiCodeGlobal": (_("Kimi Code (overseas)"), "https://api.kimi.ai/coding/v1"),
 		"platformCn": (_("Kimi Open Platform (China mainland)"), "https://api.moonshot.cn/v1"),
 		"platformGlobal": (_("Kimi Open Platform (overseas)"), "https://api.moonshot.ai/v1"),
-	}
+	},
 )
 
 KIMI_REASONING_EFFORTS = OrderedDict(
@@ -251,7 +251,7 @@ def getKimiServiceChoices() -> OrderedDict[str, str]:
 			KIMI_AUTO_SERVICE: _("Auto-detect (on first use)"),
 			**{key: value[0] for key, value in KIMI_SERVICE_ENDPOINTS.items()},
 			KIMI_CUSTOM_SERVICE: _("Custom service URL"),
-		}
+		},
 	)
 
 

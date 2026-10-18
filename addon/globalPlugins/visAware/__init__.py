@@ -562,7 +562,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _cancelCurrentRecognition(self, isUserInitiated: bool = True) -> bool:
 		return self._cancelRecognitionOutsideRuntime(isUserInitiated) or self._recognitionRuntime.cancel(
-			isUserInitiated
+			isUserInitiated,
 		)
 
 	def _getCurrentEngine(self, currentEngineType: str) -> Any | None:

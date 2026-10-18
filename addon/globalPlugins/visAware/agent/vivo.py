@@ -62,7 +62,10 @@ class VivoAgentClient:
 			{"role": "user", "content": prompt, "contentType": "text"},
 		]
 		requestParams = vivoCompletions.buildCompletionsRequest(
-			self.nvdacnUser, self.nvdacnPass, messages, extra
+			self.nvdacnUser,
+			self.nvdacnPass,
+			messages,
+			extra,
 		)
 		response = network.sendRequest(**requestParams, timeout=75)
 		try:

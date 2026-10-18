@@ -66,7 +66,8 @@ def redactForLog(value: Any, keyName: str = "") -> Any:
 	if isinstance(value, Mapping):
 		return {
 			key: redactForLog(
-				childValue, "image_url" if normalizedKeyName == "image_url" and key == "url" else str(key)
+				childValue,
+				"image_url" if normalizedKeyName == "image_url" and key == "url" else str(key),
 			)
 			for key, childValue in value.items()
 		}

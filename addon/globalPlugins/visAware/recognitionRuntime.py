@@ -187,15 +187,21 @@ class RecognitionRuntime:
 		return imageInfo, recognizeImage
 
 	def getImageFromSource(
-		self, currentSource: str, recognizer: Any
+		self,
+		currentSource: str,
+		recognizer: Any,
 	) -> tuple[RecogImageInfo, Image.Image] | None:
 		sourceHandlers = {
 			"clipboardImage": self._getImageFromClipboardSource,
 			"navigatorObject": functools.partial(
-				self._prepareImageFromObject, api.getNavigatorObject, recognizer
+				self._prepareImageFromObject,
+				api.getNavigatorObject,
+				recognizer,
 			),
 			"foreGroundWindow": functools.partial(
-				self._prepareImageFromObject, api.getForegroundObject, recognizer
+				self._prepareImageFromObject,
+				api.getForegroundObject,
+				recognizer,
 			),
 			"wholeDesktop": functools.partial(self._prepareImageFromObject, api.getDesktopObject, recognizer),
 		}
@@ -386,6 +392,6 @@ class RecognitionRuntime:
 			if "engine" in locals() and engine:
 				engine.streamResult = False
 			ui.message(
-				_("An error occurred before starting recognition. Please check your settings and try again.")
+				_("An error occurred before starting recognition. Please check your settings and try again."),
 			)
 			self._activeEngine = None

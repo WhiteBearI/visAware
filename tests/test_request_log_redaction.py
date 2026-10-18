@@ -134,7 +134,7 @@ def load_recog_handler_module():
 	_install_module_stubs()
 	loggingPath = Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware/requestLogging.py"
 	loggingSpec = importlib.util.spec_from_file_location(
-		"addon.globalPlugins.visAware.requestLogging", loggingPath
+		"addon.globalPlugins.visAware.requestLogging", loggingPath,
 	)
 	loggingModule = importlib.util.module_from_spec(loggingSpec)
 	sys.modules[loggingSpec.name] = loggingModule
@@ -158,7 +158,7 @@ def load_recognition_settings_module():
 	sys.modules[uiModule.__name__] = uiModule
 	modulePath = Path(__file__).resolve().parents[1] / "addon/globalPlugins/visAware/recognitionSettings.py"
 	spec = importlib.util.spec_from_file_location(
-		"addon.globalPlugins.visAware.recognitionSettings", modulePath
+		"addon.globalPlugins.visAware.recognitionSettings", modulePath,
 	)
 	module = importlib.util.module_from_spec(spec)
 	sys.modules[spec.name] = module

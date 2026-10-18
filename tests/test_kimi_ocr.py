@@ -57,7 +57,7 @@ def load_kimi_ocr_module():
 				{"id": "kimi-k2.7-code"},
 				{"id": "kimi-k2.7-code-highspeed"},
 				{"id": "kimi-k2.6"},
-			]
+			],
 		},
 	)
 	sys.modules[networkModule.__name__] = networkModule
@@ -273,7 +273,7 @@ class KimiOCRTestCase(unittest.TestCase):
 		engine.baseUrl = "https://api.moonshot.ai/v1"
 		self.assertEqual(engine.model, "__auto__")
 		engine._resolvedModels = list(
-			sys.modules["addon.globalPlugins.visAware.kimiProvider"].getKimiModelChoices(engine.baseUrl)
+			sys.modules["addon.globalPlugins.visAware.kimiProvider"].getKimiModelChoices(engine.baseUrl),
 		)
 		self.assertEqual(
 			list(engine.availableModels),

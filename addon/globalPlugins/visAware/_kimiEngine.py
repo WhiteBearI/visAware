@@ -130,7 +130,7 @@ class KimiEngineMixin:
 			{
 				KIMI_AUTO_MODEL: _("Auto-select (on first use)"),
 				**{model: model for model in models if model != KIMI_AUTO_MODEL},
-			}
+			},
 		)
 
 	@property

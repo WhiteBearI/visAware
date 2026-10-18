@@ -19,21 +19,21 @@ def vivo(monkeypatch):
 		setattr(sys.modules["logHandler"].log, method, lambda *args, **kwargs: None)
 	_load_module("addon.globalPlugins.visAware.exceptions", "addon/globalPlugins/visAware/exceptions.py")
 	_load_module(
-		"addon.globalPlugins.visAware.agent.decision", "addon/globalPlugins/visAware/agent/decision.py"
+		"addon.globalPlugins.visAware.agent.decision", "addon/globalPlugins/visAware/agent/decision.py",
 	)
 	sys.modules["addon.globalPlugins.visAware.engineSettings"].NumericEngineSetting = sys.modules[
 		"addon.globalPlugins.visAware.engineSettings"
 	].ChoiceEngineSetting
 	sys.modules["addon.globalPlugins.visAware.conversation"].QuestionStreamEvent = object
 	protocol = _load_module(
-		"addon.globalPlugins.visAware.vivoCompletions", "addon/globalPlugins/visAware/vivoCompletions.py"
+		"addon.globalPlugins.visAware.vivoCompletions", "addon/globalPlugins/visAware/vivoCompletions.py",
 	)
 	image = _load_module(
 		"addon.globalPlugins.visAware.imageDescribers.vivoBlueLLM",
 		"addon/globalPlugins/visAware/imageDescribers/vivoBlueLLM.py",
 	)
 	agent = _load_module(
-		"addon.globalPlugins.visAware.agent.vivo", "addon/globalPlugins/visAware/agent/vivo.py"
+		"addon.globalPlugins.visAware.agent.vivo", "addon/globalPlugins/visAware/agent/vivo.py",
 	)
 	monkeypatch.setattr(auth, "getNvdacnCredentials", lambda: ("user", "password"))
 	signed = []
@@ -44,7 +44,7 @@ def vivo(monkeypatch):
 
 	monkeypatch.setattr(auth, "genSignHeaders", sign)
 	return SimpleNamespace(
-		protocol=protocol, image=image, agent=agent, request=imageBase.RecognitionRequest, signed=signed
+		protocol=protocol, image=image, agent=agent, request=imageBase.RecognitionRequest, signed=signed,
 	)
 
 
@@ -114,7 +114,7 @@ def test_agent_request_keeps_tool_schema_timeout_and_decision(vivo, monkeypatch)
 			json=lambda: {
 				"code": 0,
 				"data": {"toolCalls": [{"name": "agent_decision", "arguments": arguments}]},
-			}
+			},
 		)
 
 	monkeypatch.setattr(vivo.agent.network, "sendRequest", send)
@@ -182,7 +182,7 @@ def test_agent_repairs_known_tool_argument_formats_and_rejects_other_tools(vivo)
 	result = {
 		"code": 0,
 		"data": {
-			"functionCall": {"name": "agent_decision", "arguments": '{"finished": False, "x": None, "y": }'}
+			"functionCall": {"name": "agent_decision", "arguments": '{"finished": False, "x": None, "y": }'},
 		},
 	}
 	assert vivo.agent._extractToolArguments(result) == {"finished": False, "x": None, "y": None}

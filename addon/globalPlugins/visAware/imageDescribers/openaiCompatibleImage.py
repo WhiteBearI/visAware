@@ -203,7 +203,7 @@ class CustomContentRecognizer(OpenAICompatibleEngineMixin, KnownModelsMixin, Bas
 		imageContent = self.prepareImageContentFromImage(self._getConversationImage(context))
 		messages = [self._buildInitialUserMessage(imageContent)]
 		messages.append(
-			self._assistantMessage(getattr(context, "response", None), getattr(context, "initialText", ""))
+			self._assistantMessage(getattr(context, "response", None), getattr(context, "initialText", "")),
 		)
 		for turn in getattr(context, "turns", []) or []:
 			role = getattr(turn, "role", "")

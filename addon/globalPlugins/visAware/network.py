@@ -351,7 +351,11 @@ def _iterResponseLinesCancellable(
 
 @retryOnNetworkError()
 def sendRequest(
-	method: str, url: str, *, session: requests.Session | None = None, **kwargs: Any
+	method: str,
+	url: str,
+	*,
+	session: requests.Session | None = None,
+	**kwargs: Any,
 ) -> requests.Response:
 	"""
 	Sends a standard (non-streaming) HTTP request with unified error handling.

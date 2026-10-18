@@ -141,7 +141,7 @@ class CustomContentRecognizer(KimiEngineMixin, BaseDescriber):
 			OpenAICompatibleSettings(
 				apiKey=self.apiKey,
 				baseUrl=self._resolvedBaseUrl or self.baseUrl,
-			)
+			),
 		)
 		return client.requestParams(
 			payload,
@@ -227,7 +227,7 @@ class CustomContentRecognizer(KimiEngineMixin, BaseDescriber):
 			OpenAICompatibleSettings(
 				apiKey=self.apiKey,
 				baseUrl=self._resolvedBaseUrl or self.baseUrl,
-			)
+			),
 		)
 		return client.requestParams(
 			payload,
@@ -323,7 +323,10 @@ class CustomContentRecognizer(KimiEngineMixin, BaseDescriber):
 		self._checkQuestionCancelled(cancellationChecker)
 		response = network.sendRequest(
 			**self._buildQuestionRequestParams(
-				context, question, stream=False, cancellationChecker=cancellationChecker
+				context,
+				question,
+				stream=False,
+				cancellationChecker=cancellationChecker,
 			),
 		)
 		self._checkQuestionCancelled(cancellationChecker)

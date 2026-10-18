@@ -57,10 +57,10 @@ def test_model_discovery_preserves_order_and_transport_controls(data):
 	calls = []
 	transport = SimpleNamespace(
 		sendRequest=lambda *args, **kwargs: calls.append((args, kwargs))
-		or SimpleNamespace(json=lambda: {"data": data})
+		or SimpleNamespace(json=lambda: {"data": data}),
 	)
 	client = module.OpenAICompatibleClient(
-		module.OpenAICompatibleSettings("secret", "https://api.example/v1"), transport
+		module.OpenAICompatibleSettings("secret", "https://api.example/v1"), transport,
 	)
 
 	def checker():
@@ -92,7 +92,7 @@ def test_responses_client_reuses_request_and_model_transport():
 		[
 			SimpleNamespace(json=lambda: {"id": "response-1", "output": []}),
 			SimpleNamespace(json=lambda: {"data": [{"id": " z "}, {"id": "a"}, {"id": "z"}]}),
-		]
+		],
 	)
 	transport = SimpleNamespace(
 		sendRequest=lambda *args, **kwargs: calls.append((args, kwargs)) or next(responses),
@@ -115,7 +115,7 @@ def test_remembered_models_follow_engine_lifecycle_without_sharing_instances(pro
 	installDeepSeekStubs()
 	imageModule = load_kimi_image_module()
 	modelSettings = _load_module(
-		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py"
+		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py",
 	)
 	baseCalls = []
 
@@ -133,10 +133,10 @@ def test_remembered_models_follow_engine_lifecycle_without_sharing_instances(pro
 	sys.modules[settings.__name__] = settings
 	if provider == "ollama":
 		_load_module(
-			"addon.globalPlugins.visAware._ollamaClient", "addon/globalPlugins/visAware/_ollamaClient.py"
+			"addon.globalPlugins.visAware._ollamaClient", "addon/globalPlugins/visAware/_ollamaClient.py",
 		)
 		module = _load_module(
-			"addon.globalPlugins.visAware._ollamaEngine", "addon/globalPlugins/visAware/_ollamaEngine.py"
+			"addon.globalPlugins.visAware._ollamaEngine", "addon/globalPlugins/visAware/_ollamaEngine.py",
 		)
 
 		class Engine(module.OllamaEngineMixin, BaseEngine):
@@ -151,7 +151,7 @@ def test_remembered_models_follow_engine_lifecycle_without_sharing_instances(pro
 				"addon/globalPlugins/visAware/_openaiEngine.py",
 			)
 			_load_module(
-				"addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py"
+				"addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py",
 			)
 		module = _load_module(
 			f"addon.globalPlugins.visAware.agent.engines.{provider}",
@@ -178,13 +178,13 @@ def test_remembered_models_follow_engine_lifecycle_without_sharing_instances(pro
 
 
 @pytest.mark.parametrize(
-	"imageUrl", ["data:image/jpeg;base64,AAAA", "https://images.example/private?signature=secret"]
+	"imageUrl", ["data:image/jpeg;base64,AAAA", "https://images.example/private?signature=secret"],
 )
 @pytest.mark.parametrize("nested", [False, True])
 def test_request_logging_handles_images_without_loading_recognition(monkeypatch, imageUrl, nested):
 	installDeepSeekStubs()
 	module = _load_module(
-		"addon.globalPlugins.visAware.requestLogging", "addon/globalPlugins/visAware/requestLogging.py"
+		"addon.globalPlugins.visAware.requestLogging", "addon/globalPlugins/visAware/requestLogging.py",
 	)
 	monkeypatch.delitem(sys.modules, "addon.globalPlugins.visAware.recogHandler", raising=False)
 	original = {
@@ -210,7 +210,7 @@ def _loadGoogleEngine(role):
 	sys.modules["logHandler"].log.debug = lambda *args, **kwargs: None
 	sys.modules["config"] = SimpleNamespace(conf={})
 	_load_module(
-		"addon.globalPlugins.visAware.requestLogging", "addon/globalPlugins/visAware/requestLogging.py"
+		"addon.globalPlugins.visAware.requestLogging", "addon/globalPlugins/visAware/requestLogging.py",
 	)
 	_load_module("addon.globalPlugins.visAware.geminiModels", "addon/globalPlugins/visAware/geminiModels.py")
 	_load_module(
@@ -227,7 +227,7 @@ def _loadGoogleEngine(role):
 	)
 	path = "contentRecognizers/geminiOCR" if role == "ocr" else f"imageDescribers/{role}"
 	module = _load_module(
-		f"addon.globalPlugins.visAware.{path.replace('/', '.')}", f"addon/globalPlugins/visAware/{path}.py"
+		f"addon.globalPlugins.visAware.{path.replace('/', '.')}", f"addon/globalPlugins/visAware/{path}.py",
 	)
 	return module, imageModule.RecognitionRequest
 
@@ -326,7 +326,7 @@ def test_kimi_agent_keeps_auto_selection_and_discovered_models_when_saving():
 	settingsModule = types.ModuleType("addon.globalPlugins.visAware.agent.engine")
 	settingsModule.BaseAgentEngine = BaseAgentEngine
 	_load_module(
-		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py"
+		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py",
 	)
 	sys.modules[settingsModule.__name__] = settingsModule
 	module = _load_module(
@@ -452,14 +452,14 @@ def test_model_fetch_preserves_connection_and_model_edits(provider, edit, framew
 	installDeepSeekStubs()
 	imageModule = load_kimi_image_module()
 	_load_module(
-		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py"
+		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py",
 	)
 	if provider == "ollama":
 		_load_module(
-			"addon.globalPlugins.visAware._ollamaClient", "addon/globalPlugins/visAware/_ollamaClient.py"
+			"addon.globalPlugins.visAware._ollamaClient", "addon/globalPlugins/visAware/_ollamaClient.py",
 		)
 		module = _load_module(
-			"addon.globalPlugins.visAware._ollamaEngine", "addon/globalPlugins/visAware/_ollamaEngine.py"
+			"addon.globalPlugins.visAware._ollamaEngine", "addon/globalPlugins/visAware/_ollamaEngine.py",
 		)
 
 		class Engine(module.OllamaEngineMixin, imageModule.BaseDescriber):
@@ -473,7 +473,7 @@ def test_model_fetch_preserves_connection_and_model_edits(provider, edit, framew
 			"addon/globalPlugins/visAware/_openaiEngine.py",
 		)
 		_load_module(
-			"addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py"
+			"addon.globalPlugins.visAware.agent.openai", "addon/globalPlugins/visAware/agent/openai.py",
 		)
 		monkeypatch.setitem(
 			sys.modules,
@@ -505,7 +505,7 @@ def test_model_fetch_preserves_connection_and_model_edits(provider, edit, framew
 		monkeypatch.setattr(module, "OpenAIAgentClient", makeClient)
 	initialModel = engine.model
 	parent = SimpleNamespace(
-		isEditingEngine=lambda candidate: candidate is engine, updateDriverSettings=lambda: None
+		isEditingEngine=lambda candidate: candidate is engine, updateDriverSettings=lambda: None,
 	)
 	button = Button(parent)
 	engine.fetchModelsChanger(SimpleNamespace(Skip=lambda: None, GetEventObject=lambda: button))
@@ -556,7 +556,7 @@ def test_openai_model_fetch_reports_missing_key_through_action_error(framework, 
 	installDeepSeekStubs()
 	imageModule = load_kimi_image_module()
 	_load_module(
-		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py"
+		"addon.globalPlugins.visAware._modelSettings", "addon/globalPlugins/visAware/_modelSettings.py",
 	)
 	monkeypatch.setitem(
 		sys.modules,
@@ -579,7 +579,7 @@ def test_openai_model_fetch_reports_missing_key_through_action_error(framework, 
 	engine = module.AgentEngine()
 	engine.imageQuality = 90
 	parent = SimpleNamespace(
-		isEditingEngine=lambda candidate: candidate is engine, updateDriverSettings=lambda: None
+		isEditingEngine=lambda candidate: candidate is engine, updateDriverSettings=lambda: None,
 	)
 	button = Button(parent)
 	engine.fetchModelsChanger(SimpleNamespace(Skip=lambda: None, GetEventObject=lambda: button))
@@ -603,7 +603,7 @@ def test_pending_model_fetch_does_not_enable_button_after_automatic_mode_is_off(
 	panel.updateDriverSettings = panel._updateAutoRecognitionControlState
 	results = []
 	framework.ui.runSettingsAction(
-		button, engine, lambda: ["model"], results.append, results.append, lambda: True
+		button, engine, lambda: ["model"], results.append, results.append, lambda: True,
 	)
 	panel._autoRecognitionEngine = None
 	panel._updateAutoRecognitionControlState()
