@@ -75,7 +75,9 @@ class BeMyEyesTest(unittest.TestCase):
 		self.errors = loadModule("exceptions", "exceptions.py")
 		self.network = loadModule("network", "network.py")
 		sys.modules[PACKAGE].network = self.network
-		loadModule("secure_storage", "secure_storage.py")
+		secureStorage = loadModule("secure_storage", "secure_storage.py")
+		secureStorage.protectString = lambda value: f"protected:{value}" if value else ""
+		secureStorage.unprotectString = lambda value: value.removeprefix("protected:") if value else ""
 		self.history = loadModule("recogHistory", "recogHistory.py")
 		self.handler.recogHistory = self.history
 		self.handler.network = self.network
@@ -83,7 +85,8 @@ class BeMyEyesTest(unittest.TestCase):
 		self.handler.CancellationError = self.errors.CancellationError
 		self.handler.wx.CallAfter = sys.modules["wx"].CallAfter
 		self.clientModule = loadModule(
-			"imageDescribers._beMyEyesClient", "imageDescribers/_beMyEyesClient.py",
+			"imageDescribers._beMyEyesClient",
+			"imageDescribers/_beMyEyesClient.py",
 		)
 		self.guiModule = loadModule("imageDescribers._beMyEyesGui", "imageDescribers/_beMyEyesGui.py")
 		sys.modules[f"{PACKAGE}.engineSettings"].ButtonEngineSetting = lambda name, label: (
@@ -144,7 +147,8 @@ class BeMyEyesTest(unittest.TestCase):
 			image.save(output, format="PNG")
 		for imageType in ("png", "jpg"):
 			content, width, height, formatName = self.client._prepareImage(
-				output.getvalue(), {"chat_image_max_dimension": 40, "chat_image_type": imageType},
+				output.getvalue(),
+				{"chat_image_max_dimension": 40, "chat_image_type": imageType},
 			)
 			self.assertEqual((width, height), (40, 20))
 			with Image.open(BytesIO(content)) as converted:
@@ -172,10 +176,15 @@ class BeMyEyesTest(unittest.TestCase):
 		engine.originalImage = object()
 		params = engine._buildRequestParams(b"image", self.handler.RecognitionRequest(True, False))
 		with patch.object(
-			self.clientModule.BeMyEyesClient, "_prepareImage", return_value=(b"jpeg", 40, 20, "jpeg"),
+			self.clientModule.BeMyEyesClient,
+			"_prepareImage",
+			return_value=(b"jpeg", 40, 20, "jpeg"),
 		):
 			result = engine._handleStandardResponse(
-				params, None, Event(), self.handler.RecognitionRequest(True, False),
+				params,
+				None,
+				Event(),
+				self.handler.RecognitionRequest(True, False),
 			)
 		self.assertEqual(result.text, "A blue door.")
 		entry = self.history.getAttachedEntry(result)
@@ -201,7 +210,10 @@ class BeMyEyesTest(unittest.TestCase):
 		self.check.assert_called()
 		with patch.object(engine, "_getApiResult", return_value=entry.response):
 			richResult = engine._handleStandardResponse(
-				{}, "geometry", Event(), self.handler.RecognitionRequest(False, False),
+				{},
+				"geometry",
+				Event(),
+				self.handler.RecognitionRequest(False, False),
 			)
 		self.assertEqual(richResult.data[0][0]["text"], result.text)
 		self.assertEqual(richResult.imageInfo, "geometry")
@@ -658,7 +670,9 @@ class BeMyEyesTest(unittest.TestCase):
 		self.queueResponses({"text": "standard result"})
 		with patch.object(engine, "processApiResult", return_value=False) as validate:
 			result = self.handler.BaseRecognizer._getApiResult(
-				engine, {"method": "POST", "url": "https://example.test"}, Event(),
+				engine,
+				{"method": "POST", "url": "https://example.test"},
+				Event(),
 			)
 			validate.assert_called_once()
 		self.assertEqual(result["text"], "standard result")
@@ -666,7 +680,9 @@ class BeMyEyesTest(unittest.TestCase):
 		with patch.object(engine, "processApiResult", return_value="service error"):
 			with self.assertRaisesRegex(self.errors.ApiError, "service error"):
 				self.handler.BaseRecognizer._getApiResult(
-					engine, {"method": "POST", "url": "https://example.test"}, Event(),
+					engine,
+					{"method": "POST", "url": "https://example.test"},
+					Event(),
 				)
 
 

@@ -57,10 +57,17 @@ def framework(monkeypatch):
 	load("engineGUIHelper")
 	ui = load("engineSettingsUI")
 	monkeypatch.setattr(
-		ui, "Thread", lambda **kwargs: SimpleNamespace(start=lambda: threads.append(kwargs["target"])),
+		ui,
+		"Thread",
+		lambda **kwargs: SimpleNamespace(start=lambda: threads.append(kwargs["target"])),
 	)
 	return SimpleNamespace(
-		core=core, settings=settings, ui=ui, config=config, threads=threads, callbacks=callbacks,
+		core=core,
+		settings=settings,
+		ui=ui,
+		config=config,
+		threads=threads,
+		callbacks=callbacks,
 	)
 
 
@@ -68,7 +75,9 @@ def framework(monkeypatch):
 def test_config_round_trip_preserves_aliases_types_and_automatic_overrides(framework, saveFails):
 	f = framework
 	setting = f.settings.TextInputEngineSetting(
-		"autoRecognitionPrompt", "Automatic prompt", configKey="autoRecognitionPromptV2",
+		"autoRecognitionPrompt",
+		"Automatic prompt",
+		configKey="autoRecognitionPromptV2",
 	)
 	declarations = [
 		setting,
@@ -136,7 +145,8 @@ class Button:
 
 
 @pytest.mark.parametrize(
-	"outcome", ["success", "error", "destroy", "switch", "credentials", "save", "discard"],
+	"outcome",
+	["success", "error", "destroy", "switch", "credentials", "save", "discard"],
 )
 def test_settings_action_applies_only_to_current_editor_on_main_thread(framework, outcome):
 	f = framework
@@ -194,8 +204,9 @@ def test_hidden_custom_url_keeps_creation_order_when_it_becomes_visible(framewor
 	panel._getEngine = lambda: engine
 	panel._loadedEngines = []
 	panel._sizerDict = {}
-	created, shown, hidden = [], [], []
+	created, shown, hidden, visibility = [], [], [], []
 	panel.settingsSizer = SimpleNamespace(Hide=hidden.append, Layout=lambda: None)
+	panel.Show = visibility.append
 
 	def create(setting, engine):
 		created.append(setting.name)
@@ -210,3 +221,4 @@ def test_hidden_custom_url_keeps_creation_order_when_it_becomes_visible(framewor
 	panel.updateDriverSettings("service")
 	assert created == ["key", "service", "url", "detect", "model"]
 	assert "url" in shown
+	assert visibility == [True, True]
