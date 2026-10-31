@@ -377,6 +377,8 @@ class TaskCuesTestCase(unittest.TestCase):
 				"_onAskCancelled",
 				"_onAskSucceeded",
 				"_onClose",
+				"_restoreHistoryCaret",
+				"_appendToHistory",
 			},
 			{
 				"wx": self.wx,
