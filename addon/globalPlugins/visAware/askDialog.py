@@ -152,16 +152,37 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 		"""Moves focus to the question edit field."""
 		self._questionText.SetFocus()
 
+	def _restoreHistoryCaret(self, caret: int) -> None:
+		"""Puts the history caret back where the user left it, anchored in view."""
+		self._messagesText.SetInsertionPoint(caret)
+		self._messagesText.ShowPosition(caret)
+
+	def _appendToHistory(self, text: str) -> None:
+		"""Appends text to the conversation history without moving the caret.
+
+		``AppendText`` implicitly moves the insertion point to the end of the
+		control (dragging the view along with it), so the caret is restored
+		afterwards to wherever the user left it. Freshly arrived text simply
+		grows below the reading position, like an overflowing browser page.
+		"""
+		caret = self._messagesText.GetInsertionPoint()
+		self._messagesText.Freeze()
+		try:
+			self._messagesText.AppendText(text)
+			self._restoreHistoryCaret(caret)
+		finally:
+			self._messagesText.Thaw()
+
 	def _appendMessage(self, sender: str, text: str, report: bool = True) -> None:
 		if not text:
 			return
 		currentText = self._messagesText.GetValue()
 		displayMessageText = f"{sender}:\n{text}"
 		if currentText:
-			self._messagesText.AppendText(f"\n\n{displayMessageText}")
+			self._appendToHistory(f"\n\n{displayMessageText}")
 		else:
 			self._messagesText.SetValue(displayMessageText)
-		self._messagesText.SetInsertionPointEnd()
+		# Keep the caret where the user left it (no auto-scroll to the end).
 		if report:
 			ui.message(f"{sender}: {text}")
 
@@ -257,16 +278,14 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 			self._streamingSpeechPresenter.start()
 			self._streamingSpeechPresenter.addText(text)
 			return
-		self._messagesText.AppendText(text)
-		self._messagesText.SetInsertionPointEnd()
+		self._appendToHistory(text)
 		self._streamingAnswerText += text
 		self._streamingSpeechPresenter.addText(text)
 
 	def _startStreamingAnswer(self, requestSequence: int) -> None:
 		currentText = self._messagesText.GetValue()
 		messagePrefix = "\n\n" if currentText else ""
-		self._messagesText.AppendText(f"{messagePrefix}{ANSWER_SENDER}:\n")
-		self._messagesText.SetInsertionPointEnd()
+		self._appendToHistory(f"{messagePrefix}{ANSWER_SENDER}:\n")
 		self._streamingAnswerRequestSequence = requestSequence
 		self._streamingAnswerTextStartPosition = self._messagesText.GetLastPosition()
 		self._streamingAnswerText = ""
@@ -276,8 +295,13 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 		if self._streamingAnswerTextStartPosition is None:
 			return
 		currentText = self._messagesText.GetValue()
-		self._messagesText.SetValue(f"{currentText[: self._streamingAnswerTextStartPosition]}{text}")
-		self._messagesText.SetInsertionPointEnd()
+		caret = self._messagesText.GetInsertionPoint()
+		self._messagesText.Freeze()
+		try:
+			self._messagesText.SetValue(f"{currentText[: self._streamingAnswerTextStartPosition]}{text}")
+			self._restoreHistoryCaret(min(caret, self._messagesText.GetLastPosition()))
+		finally:
+			self._messagesText.Thaw()
 		self._streamingAnswerText = text
 
 	def _finishStreamingAnswer(self, requestSequence: int, answer: str) -> bool:
@@ -290,8 +314,7 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 			elif answer.startswith(self._streamingAnswerText):
 				missingText = answer[len(self._streamingAnswerText) :]
 			if missingText:
-				self._messagesText.AppendText(missingText)
-				self._messagesText.SetInsertionPointEnd()
+				self._appendToHistory(missingText)
 				self._streamingAnswerText += missingText
 				self._streamingSpeechPresenter.addText(missingText)
 		self._streamingSpeechPresenter.finish()
