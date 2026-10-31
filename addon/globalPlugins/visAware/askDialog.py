@@ -39,6 +39,9 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 	MESSAGE_MIN_SIZE = (620, 360)
 	QUESTION_MIN_SIZE = (460, 80)
 
+	_pendingDescribe: ConversationContext | None = None
+	_onPendingDescribeSend: Callable[[str], None] | None = None
+
 	def __init__(
 		self,
 		parent: wx.Window | None,
@@ -260,8 +263,8 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 			ui.message(_("Waiting for answer."))
 			return
 		self._cancelStreamingAnswer()
-		if self._pendingDescribe is not None:
-			callback = self._onPendingDescribeSend
+		if getattr(self, "_pendingDescribe", None) is not None:
+			callback = getattr(self, "_onPendingDescribeSend", None)
 			if callback is None:
 				# Translators: Reported while a follow-up question is still being answered.
 				ui.message(_("Waiting for answer."))
