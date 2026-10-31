@@ -144,6 +144,7 @@ class AskQuestionFrame(DpiScalingHelperMixinWithoutInit, wx.Frame):
 				if turn.role == ROLE_ASSISTANT:
 					self._formattedContent = turn.text
 			self._appendMessage(sender, turn.text, report=False)
+		self._restoreHistoryCaret(self._messagesText.GetLastPosition())
 		self._questionText.SetValue("")
 		self._setSendButtonEnabled(True)
 		self.Layout()
