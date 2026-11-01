@@ -173,7 +173,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._pendingDescribeContext: ConversationContext | None = None
 		self._pendingDescribeQuestion: str | None = None
 		self._pendingDescribeAwaiting = False
-		self._pendingDescribeImageData: tuple | None = None
 		self.ocrSettingMenuItem: wx.MenuItem | None = None
 		self._recognitionRuntime = RecognitionRuntime(
 			self._taskCues,
@@ -562,9 +561,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(_("This model doesn't support the operation."))
 			return
 		currentSource = getValidSourceType(conf)
-		self._promptBeforeDescribe(currentSource, simpleText=False)
+		self._promptBeforeDescribe(currentSource)
 
-	def _promptBeforeDescribe(self, currentSource: str, simpleText: bool) -> None:
+	def _promptBeforeDescribe(self, currentSource: str) -> None:
 		"""Shows the ask-question frame so the user can prompt the upcoming image description.
 
 		The image is captured up front, before the frame becomes visible, so the
@@ -614,14 +613,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._pendingDescribeContext = pendingContext
 			self._pendingDescribeQuestion = question
 			self._pendingDescribeAwaiting = True
-			self._pendingDescribeImageData = imageData
 			wx.CallLater(
 				250,
 				self.executeRecognition,
 				None,
 				currentSource,
 				"ImageDescriber",
-				simpleText,
+				False,
 				imageData,
 			)
 
@@ -710,17 +708,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._pendingDescribeAwaiting = False
 			self._pendingDescribeQuestion = None
 			self._pendingDescribeContext = None
-			self._pendingDescribeImageData = None
 			self._askBeforeDescribeDialogActive = False
 
 	def _failPendingDescribe(self, message: str) -> None:
 		"""Reports a failed describe-before recognition in the frame."""
+		engine = self.descHandler.getCurrentEngine() if hasattr(self, "descHandler") else None
+		if engine and hasattr(engine, "_initialPromptForDescribe"):
+			engine._initialPromptForDescribe = None
 		if not self._pendingDescribeAwaiting:
 			return
 		self._pendingDescribeAwaiting = False
 		self._pendingDescribeQuestion = None
 		self._pendingDescribeContext = None
-		self._pendingDescribeImageData = None
 		self._askBeforeDescribeDialogActive = False
 		frame = self._askQuestionFrame
 		if frame is not None:

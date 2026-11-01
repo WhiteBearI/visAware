@@ -421,6 +421,8 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		self._recognitionThread.start()
 
 	def cancel(self, isUserInitiated: bool = True) -> None:
+		if hasattr(self, "_initialPromptForDescribe"):
+			self._initialPromptForDescribe = None
 		if self._cancellationEvent:
 			self._cancellationEvent.is_user_initiated = isUserInitiated
 			self._cancellationEvent.set()
@@ -431,6 +433,8 @@ class BaseRecognizer(ContentRecognizer, AbstractEngine, ABC):
 		return self._cancellationEvent
 
 	def terminate(self) -> None:
+		if hasattr(self, "_initialPromptForDescribe"):
+			self._initialPromptForDescribe = None
 		self.cancel()
 
 	def _checkCancelled(self, cancellationEvent: Event) -> None:

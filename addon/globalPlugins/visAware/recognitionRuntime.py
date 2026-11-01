@@ -383,6 +383,8 @@ class RecognitionRuntime:
 				imageData = self.getImageFromSource(currentSource, engine)
 			if not imageData:
 				engine.streamResult = False
+				if hasattr(engine, "_initialPromptForDescribe"):
+					engine._initialPromptForDescribe = None
 				self._activeEngine = None
 				return
 			imageInfo, recognizeImage = imageData
@@ -400,6 +402,8 @@ class RecognitionRuntime:
 				self._streamingSpeechPresenter.cancel()
 			if "engine" in locals() and engine:
 				engine.streamResult = False
+				if hasattr(engine, "_initialPromptForDescribe"):
+					engine._initialPromptForDescribe = None
 			ui.message(
 				_("An error occurred before starting recognition. Please check your settings and try again."),
 			)
