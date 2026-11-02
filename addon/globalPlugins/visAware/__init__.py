@@ -591,7 +591,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: A message indicating that no recognition engine is configured.
 			ui.message(_("No recognition engine is configured."))
 			return
-		if currentSource != "clipboardImage" and self._isScreenCurtainRunning() and not isScreenCurtainCaptureSupported():
+		if (
+			currentSource != "clipboardImage"
+			and self._isScreenCurtainRunning()
+			and not isScreenCurtainCaptureSupported()
+		):
 			# Translators: A message shown when trying to recognize with screen curtain enabled.
 			ui.message(_("Please disable screen curtain before recognition."))
 			return
@@ -654,6 +658,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return False
 		if isinstance(result, Exception):
 			from .exceptions import AuthenticationError, NetworkError, CancellationError
+
 			if isinstance(result, CancellationError):
 				message = _("Recognition cancelled")
 			elif isinstance(result, AuthenticationError):
